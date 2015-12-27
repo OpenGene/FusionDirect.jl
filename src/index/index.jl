@@ -1,17 +1,40 @@
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
+const KMER = 16
 
 export Coord
 type Coord
+    # of which contig, usually a chr, a gene, an exon or any sequence
     contig::Int16
+    # offset in this contig
     pos::Int32
+    # in which strand, 1 means +, -1 means -
+    strand::Int16
 
-    Coord(contig, pos) = new(Int16(contig), Int32(pos))
+    Coord(contig, pos, strand = 1) = new(Int16(contig), Int32(pos), Int16(strand))
 end
 
 # generate a coord represents a kmer key collision
-function dupmark()
+function dup_coord()
     return Coord(-1, 0)
 end
+
+# generate a coord represents a kmer key collision
+function unknown_coord()
+    return Coord(-2, 0)
+end
+
+function distance(c1::Coord, c2::Coord)
+    if c1.contig != c2.contig
+        return Inf
+    else
+        return c1.pos - c2.pos
+    end
+end
+
+-(c1::Coord, c2::Coord) = distance(c1::Coord, c2::Coord)
+
+is_dup(coord::Coord) = (coord.contig == -1)
+is_unknown(coord::Coord) = (coord.contig == -2)
 
 export Index
 type Index
@@ -38,7 +61,7 @@ export add
 function add(index::Index, seq::Sequence, coord::Coord)
     key = kmer2key(seq)
     if key in keys(index.data)
-        index.data[key] = dupmark()
+        index.data[key] = dup_coord()
         return false
     end
     index.data[key] = coord
@@ -46,18 +69,22 @@ function add(index::Index, seq::Sequence, coord::Coord)
 end
 
 export index_contig
-function index_contig(index::Index, contig_seq::Sequence, contig_number::Int; kmer = 16)
-    if kmer > 30
-        error("kmer should be <= 30")
+function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
+    len = length(contig_seq)
+    for i in 1:len-KMER+1
+        seq = contig_seq[i:i+KMER-1]
+        add(index, seq, Coord(contig_number, i, 1))
     end
-    for i in 1:length(contig_seq)-kmer+1
-        seq = contig_seq[i:i+kmer-1]
-        add(index, seq, Coord(contig_number, i))
+    reverse = ~contig_seq
+    for i in 1:len-KMER+1
+        seq = reverse[i:i+KMER-1]
+        # here we align the position to the + strand for processing pair end sequence easier
+        add(index, seq, Coord(contig_number, len-KMER+1, -1))
     end
 end
 
 export index_bed
-# ref_folder is a folder contains fasta files by chr
+# ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
 function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     index = Index()

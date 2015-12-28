@@ -11,14 +11,12 @@ function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::Abst
             i += 1
             matches = detect_pair(index, pair)
             if length(matches)>1
-                print("\n")
-                println(pair.read1.sequence)
-                println(pair.read2.sequence)
+                name = ">$i-"
                 for m in matches
-                    print(bed[m] * " ")
+                    name = name * bed[m] * "-"
                 end
-            elseif i%10000 == 0
-                print("$i ")
+                print(name, "R1\n",pair.read1.sequence.seq,"\n")
+                print(name, "R2\n",pair.read2.sequence.seq,"\n")
             end
         end
     end

@@ -1,7 +1,6 @@
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
 const KMER = 16
 
-export Coord
 type Coord
     # of which contig, usually a chr, a gene, an exon or any sequence
     contig::Int16
@@ -35,14 +34,13 @@ end
 
 is_dup(coord::Coord) = (coord.contig == -1)
 is_unknown(coord::Coord) = (coord.contig == -2)
+valid(coord::Coord) = (coord.contig >= 0)
 
-export Index
 type Index
     data::Dict{Int64, Coord}
     Index() = new(Dict{Int64, Coord}())
 end
 
-export kmer2key
 function kmer2key(seq::Sequence)
     kmer2key(seq.seq)
 end
@@ -50,6 +48,9 @@ end
 # convert a kmer seq to a int64 key
 function kmer2key(str::ASCIIString)
     str = uppercase(str)
+    if contains(str, "N")
+        return -1
+    end
     key = 0
     for c in str
         key = key*4 + DNA2BIT[c]
@@ -57,7 +58,6 @@ function kmer2key(str::ASCIIString)
     return key
 end
 
-export add
 function add(index::Index, seq::Sequence, coord::Coord)
     key = kmer2key(seq)
     if key in keys(index.data)
@@ -68,7 +68,6 @@ function add(index::Index, seq::Sequence, coord::Coord)
     return true
 end
 
-export index_contig
 function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
     len = length(contig_seq)
     for i in 1:len-KMER+1
@@ -83,7 +82,6 @@ function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
     end
 end
 
-export index_bed
 # ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
 function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
@@ -92,6 +90,7 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     bed = readall(io)
     lines = split(bed, '\n')
     contig_number = 0
+    ref = Dict{Int16, ASCIIString}()
     for line in lines
         contig_number += 1
         line = rstrip(line, '\n')
@@ -100,10 +99,11 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         chr = ASCIIString(cols[1])
         from = parse(Int64, ASCIIString(cols[2]),)
         to = parse(Int64, ASCIIString(cols[3]))
-        contig = ASCIIString(cols[3])
+        contig = ASCIIString(cols[4])
         chr_file = ref_folder * "/" * chr * ".fa"
-        contig_seq = load(chr_file, chr, from, to)
+        contig_seq = load_ref(chr_file, chr, from, to)
         index_contig(index, contig_seq, contig_number)
+        ref[contig_number] = contig
     end
-    return index
+    return index, ref
 end

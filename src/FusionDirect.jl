@@ -1,8 +1,11 @@
 module FusionDirect
 
 using OpenGene
+using OpenGene.Algorithm
 
 # package code goes here
+
+export detect
 
 import Base: -
 

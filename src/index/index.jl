@@ -100,7 +100,7 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         end
         println(cols)
         chr = ASCIIString(cols[1])
-        from = parse(Int64, ASCIIString(cols[2]),)
+        from = parse(Int64, ASCIIString(cols[2]))
         to = parse(Int64, ASCIIString(cols[3]))
         contig = ASCIIString(cols[4])
         chr_file = ref_folder * "/" * chr * ".fa"

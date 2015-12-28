@@ -2,8 +2,8 @@ const THRESHOLD = 30
 
 # ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
-function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString)
-    index, bed = index_bed(ref_folder, bed_file)
+function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
+    index, bed, ref = index_bed(ref_folder, bed_file)
     if r2fq != ""
         io = fastq_open_pair(r1fq, r2fq)
         i = 0
@@ -22,8 +22,47 @@ function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::Abst
     end
 end
 
-# simple fusion detection
+function verify(index, bed, ref, pair)
+    offset, len, distance = overlap(pair)
+    if len>0 && distance<3
+        seq = simple_merge(pair)
+        segment(index, seq)
+    end
+end
+
+# detect fusion and find the segmentations
+function segment(index::Index, seq::Sequence)
+    counts = stat(index, seq)
+end
+
+# detect fusion in a pair of reads
+function detect_pair(index::Index, pair::FastqPair)
+    match1 = detect_read(index, pair.read1.sequence)
+    match2 = detect_read(index, pair.read2.sequence)
+    # merge them
+    for m in match2
+        if (m in match1) == false
+            push!(match1, m)
+        end
+    end
+    return match1
+end
+
+# simple fusion detection in a sequence
+# this function is very fast and is not accurate
 function detect_read(index::Index, seq::Sequence)
+    counts = stat(index, seq)
+    matches = Array{Int16, 1}()
+    for (k,v) in counts
+        if v > THRESHOLD
+            push!(matches, k)
+        end
+    end
+    return matches
+end
+
+# stat the coordinations of kmers
+function stat(index::Index, seq::Sequence)
     len = length(seq)
     coords = [unknown_coord() for i in 1:len-KMER+1]
     for i in 1:len-KMER+1
@@ -45,23 +84,5 @@ function detect_read(index::Index, seq::Sequence)
             end
         end
     end
-
-    matches = Array{Int16, 1}()
-    for (k,v) in counts
-        if v > THRESHOLD
-            push!(matches, k)
-        end
-    end
-    return matches
-end
-
-function detect_pair(index::Index, pair::FastqPair)
-    match1 = detect_read(index, pair.read1.sequence)
-    match2 = detect_read(index, pair.read2.sequence)
-    for m in match2
-        if (m in match1) == false
-            push!(match1, m)
-        end
-    end
-    return match1
+    return counts
 end

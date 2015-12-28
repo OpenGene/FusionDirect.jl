@@ -22,6 +22,7 @@ function unknown_coord()
     return Coord(-2, 0)
 end
 
+# distance of two coords
 function distance(c1::Coord, c2::Coord)
     if c1.contig != c2.contig
         return Inf
@@ -58,6 +59,7 @@ function kmer2key(str::ASCIIString)
     return key
 end
 
+# add and index a kmer
 function add(index::Index, seq::Sequence, coord::Coord)
     key = kmer2key(seq)
     if key in keys(index.data)
@@ -68,6 +70,7 @@ function add(index::Index, seq::Sequence, coord::Coord)
     return true
 end
 
+# add and index all kmers of a contig
 function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
     len = length(contig_seq)
     for i in 1:len-KMER+1
@@ -90,7 +93,8 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     bed = readall(io)
     lines = split(bed, '\n')
     contig_number = 0
-    ref = Dict{Int16, ASCIIString}()
+    bed = Dict{Int16, ASCIIString}()
+    ref = Dict{Int16, Sequence}()
     for line in lines
         contig_number += 1
         line = rstrip(line, '\n')
@@ -101,11 +105,12 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         chr = ASCIIString(cols[1])
         from = parse(Int64, ASCIIString(cols[2]))
         to = parse(Int64, ASCIIString(cols[3]))
-        contig = ASCIIString(cols[4])
+        contig_name = ASCIIString(cols[4])
         chr_file = ref_folder * "/" * chr * ".fa"
         contig_seq = load_ref(chr_file, chr, from, to)
         index_contig(index, contig_seq, contig_number)
-        ref[contig_number] = contig
+        bed[contig_number] = contig_name
+        ref[contig_number] = contig_seq
     end
-    return index, ref
+    return index, bed, ref
 end

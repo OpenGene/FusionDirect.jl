@@ -95,6 +95,9 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         contig_number += 1
         line = rstrip(line, '\n')
         cols = split(line)
+        if length(cols)<4
+            continue
+        end
         println(cols)
         chr = ASCIIString(cols[1])
         from = parse(Int64, ASCIIString(cols[2]),)

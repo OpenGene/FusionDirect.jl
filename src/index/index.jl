@@ -24,7 +24,7 @@ end
 
 # distance of two coords
 function distance(c1::Coord, c2::Coord)
-    if c1.contig != c2.contig
+    if c1.contig != c2.contig || c1.strand != c2.strand
         return Inf
     else
         return c1.pos - c2.pos

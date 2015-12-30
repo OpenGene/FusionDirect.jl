@@ -12,7 +12,7 @@ function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::Abst
             matches = detect_pair(index, pair)
             if length(matches)>1
                 fusion_left, fusion_right = verify_fusion_pair(index, bed, ref, pair)
-                if fusion_left!=false && fusion_right!=false
+                if fusion_left!=false && fusion_right!=false && distance(fusion_left, fusion_right)>1000
                     add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
                 end
             end
@@ -180,9 +180,14 @@ function cluster(coords::Array{Coord, 1})
         # create a new cluster
         # get a valid seed
         seed = pop!(points)
-        while(!valid(coords[seed]))
+        while(!valid(coords[seed]) && !isempty(points))
             seed = pop!(points)
         end
+        # we don't find a valid seed, so break
+        if !valid(coords[seed])
+            break
+        end
+        # create a new cluster
         cluster = Set(seed)
         # create a new working set
         working = Set(seed)

@@ -95,22 +95,37 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     contig_number = 0
     bed = Dict{Int16, Dict{}}()
     ref = Dict{Int16, Sequence}()
+    chr_bed = Dict{ASCIIString, Array{Int}}()
     for line in lines
-        contig_number += 1
         line = rstrip(line, '\n')
         cols = split(line)
         if length(cols)<4
             continue
         end
+        contig_number += 1
         chr = ASCIIString(cols[1])
+        if (chr in keys(chr_bed))==false
+            chr_bed[chr]=Array{Int,1}()
+        end
+        push!(chr_bed[chr], contig_number)
         from = parse(Int64, ASCIIString(cols[2]))
         to = parse(Int64, ASCIIString(cols[3]))
         contig_name = ASCIIString(cols[4])
-        chr_file = ref_folder * "/" * chr * ".fa"
-        contig_seq = load_ref(chr_file, chr, from, to)
-        index_contig(index, contig_seq, contig_number)
         bed[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
-        ref[contig_number] = contig_seq
+    end
+    for (chr,contig_numbers) in chr_bed
+        chr_file = ref_folder * "/" * chr * ".fa"
+        chr_seq = load_chr(chr_file, chr)
+        if chr_seq==false
+            error("cannot load data of chromosome $chr")
+        end
+        for contig_number in contig_numbers
+            from = bed[contig_number]["from"]
+            to = bed[contig_number]["to"]
+            contig_seq = chr_seq[from:to]
+            index_contig(index, contig_seq, contig_number)
+            ref[contig_number] = contig_seq
+        end
     end
     return index, bed, ref
 end

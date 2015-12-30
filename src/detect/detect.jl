@@ -24,20 +24,31 @@ end
 function display_fusion_pair(fusion_pairs, ref, bed)
     for (fusion_key, fusion_reads) in fusion_pairs
         contig1, contig2 = fusion_key
-        name1 = bed[contig1]
-        name2 = bed[contig2]
+        name1 = bed[contig1]["name"]
+        name2 = bed[contig2]["name"]
         # give the fusion as a fasta comment line
         print("#Fusion:", name1, "-", name2, "\n")
         # display all reads support this fusion
         for reads in fusion_reads
             fusion_left, fusion_right, pair = reads
             name = ">"
-            name = name * bed[fusion_left.contig] * "-" * string(fusion_left.pos) * "-" 
-            name = name * bed[fusion_right.contig] * "-" * string(fusion_right.pos) * "-"
+            name = name * bed[fusion_left.contig]["name"] * strand_name(fusion_left.strand) * coord_to_chr(fusion_left, bed) * "_" 
+            name = name * bed[fusion_right.contig]["name"] * strand_name(fusion_right.strand)  * coord_to_chr(fusion_right, bed) * "_"
             print(name, "R1\n",pair.read1.sequence.seq,"\n")
             print(name, "R2\n",pair.read2.sequence.seq,"\n")
         end
     end
+end
+
+function strand_name(strand)
+    return strand>0?"+":"-"
+end
+
+function coord_to_chr(coord, bed)
+    from = bed[coord.contig]["from"]
+    chr = bed[coord.contig]["chr"]
+    pos = from + coord.pos 
+    return chr * ":" * string(pos)
 end
 
 function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
@@ -82,8 +93,10 @@ function verify_fusion_pair(index, bed, ref, pair)
             l2 = seg2[1][1]
             len1 = length(coords1)
             len2= length(coords2)
-            fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + coords1[l1].strand * (len1 - l1))
-            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + coords2[l2].strand * (len2 - l2))
+            fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + coords1[l1].strand * (len1 - l1), coords1[l1].strand)
+            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + coords2[l2].strand * (len2 - l2), coords2[l2].strand)
+            # reverse the strand of fusion right to align the pair in same direction
+            fusion_right.strand *= -1
             return fusion_left, fusion_right
         end
     end
@@ -96,8 +109,8 @@ function make_connected_fusion(index, ref, seg, coords)
     l2 = seg[2][1]
     r2 = seg[2][2]
     conjunct = div(r1+l2, 2)
-    fusion_left = Coord(coords[l1].contig, coords[l1].pos + coords[l1].strand * (conjunct - l1))
-    fusion_right = Coord(coords[l2].contig, coords[l2].pos + coords[l2].strand * (conjunct - l2))
+    fusion_left = Coord(coords[l1].contig, coords[l1].pos + coords[l1].strand * (conjunct - l1), coords[l1].strand)
+    fusion_right = Coord(coords[l2].contig, coords[l2].pos + coords[l2].strand * (conjunct - l2), coords[l2].strand)
     return fusion_left, fusion_right
 end
 

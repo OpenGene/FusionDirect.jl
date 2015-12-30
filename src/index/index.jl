@@ -90,10 +90,10 @@ end
 function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     index = Index()
     io = open(bed_file)
-    bed = readall(io)
-    lines = split(bed, '\n')
+    bed_file = readall(io)
+    lines = split(bed_file, '\n')
     contig_number = 0
-    bed = Dict{Int16, ASCIIString}()
+    bed = Dict{Int16, Dict{}}()
     ref = Dict{Int16, Sequence}()
     for line in lines
         contig_number += 1
@@ -109,7 +109,7 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         chr_file = ref_folder * "/" * chr * ".fa"
         contig_seq = load_ref(chr_file, chr, from, to)
         index_contig(index, contig_seq, contig_number)
-        bed[contig_number] = contig_name
+        bed[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
         ref[contig_number] = contig_seq
     end
     return index, bed, ref

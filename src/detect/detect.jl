@@ -4,27 +4,58 @@ const THRESHOLD = 30
 # like chr1.fa, chr2.fa ...
 function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
     index, bed, ref = index_bed(ref_folder, bed_file)
+    # pair end sequencing
     if r2fq != ""
         io = fastq_open_pair(r1fq, r2fq)
-        i = 0
+        fusion_pairs = Dict()
         while (pair = fastq_read_pair(io)) != false
-            i += 1
             matches = detect_pair(index, pair)
             if length(matches)>1
-                fusion_left, fusion_right = verify_fusion(index, bed, ref, pair)
+                fusion_left, fusion_right = verify_fusion_pair(index, bed, ref, pair)
                 if fusion_left!=false && fusion_right!=false
-                    name = ">"
-                    name = name * bed[fusion_left.contig] * "-" * string(fusion_left.pos) * "-" 
-                    name = name * bed[fusion_right.contig] * "-" * string(fusion_right.pos) * "-"
-                    print(name, "R1\n",pair.read1.sequence.seq,"\n")
-                    print(name, "R2\n",pair.read2.sequence.seq,"\n")
+                    add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
                 end
             end
+        end
+        display_fusion_pair(fusion_pairs, ref, bed)
+    end
+end
+
+function display_fusion_pair(fusion_pairs, ref, bed)
+    for (fusion_key, fusion_reads) in fusion_pairs
+        contig1, contig2 = fusion_key
+        name1 = bed[contig1]
+        name2 = bed[contig2]
+        # give the fusion as a fasta comment line
+        print("#Fusion:", name1, "-", name2, "\n")
+        # display all reads support this fusion
+        for reads in fusion_reads
+            fusion_left, fusion_right, pair = reads
+            name = ">"
+            name = name * bed[fusion_left.contig] * "-" * string(fusion_left.pos) * "-" 
+            name = name * bed[fusion_right.contig] * "-" * string(fusion_right.pos) * "-"
+            print(name, "R1\n",pair.read1.sequence.seq,"\n")
+            print(name, "R2\n",pair.read2.sequence.seq,"\n")
         end
     end
 end
 
-function verify_fusion(index, bed, ref, pair)
+function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
+    key = (min(fusion_left.contig, fusion_right.contig), max(fusion_left.contig, fusion_right.contig))
+    if (key in keys(fusion_pairs)) == false
+        fusion_pairs[key]=[]
+    end
+    push!(fusion_pairs[key], (fusion_left, fusion_right, pair))
+end
+
+function verify_fusion_se(index, bed, ref, sequence)
+    seg1, coords1 = segment(index, sequence, ref)
+    if length(seg1) > 1
+        return make_connected_fusion(index, ref, seg1, coords1)
+    end
+end
+
+function verify_fusion_pair(index, bed, ref, pair)
     offset, overlap_len, distance = overlap(pair)
     # this pair is overlapped, so merged it and segment the merged sequence
     if overlap_len>0 && distance<5

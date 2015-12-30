@@ -32,10 +32,10 @@ function display_fusion_pair(fusion_pairs, ref, bed)
         for reads in fusion_reads
             fusion_left, fusion_right, pair = reads
             name = ">"
-            name = name * bed[fusion_left.contig]["name"] * strand_name(fusion_left.strand) * coord_to_chr(fusion_left, bed) * "_" 
-            name = name * bed[fusion_right.contig]["name"] * strand_name(fusion_right.strand)  * coord_to_chr(fusion_right, bed) * "_"
-            print(name, "R1\n",pair.read1.sequence.seq,"\n")
-            print(name, "R2\n",pair.read2.sequence.seq,"\n")
+            name = name * bed[fusion_left.contig]["name"] * "|" * strand_name(fusion_left.strand) * "|" * coord_to_chr(fusion_left, bed) * "_"
+            name = name * bed[fusion_right.contig]["name"] * "|" * strand_name(fusion_right.strand)  * "|" * coord_to_chr(fusion_right, bed) * "/"
+            print(name, "1\n",pair.read1.sequence.seq,"\n")
+            print(name, "2\n",pair.read2.sequence.seq,"\n")
         end
     end
 end

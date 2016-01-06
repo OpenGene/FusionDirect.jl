@@ -1,6 +1,14 @@
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
 const KMER = 16
 
+"""
+the position of a k-mer sequence is the position of its first base, normalized to the direction of strand +
+this is why a kmer sequence and its reverse compelement has a position offset of KMER-1
+for example
+contig: AAAATTTTCCCCGGG[G]TCATGATTACCAACCAATACCGTGGGATGG
+position of the first 16-mer AAAATTTTCCCCGGGG is: 1
+position of reverse compelement of the first 16-mer, CCCCGGGGAAAATTTT is: 1+16-1 = 16, the position bracketed
+"""
 type Coord
     # of which contig, usually a chr, a gene, an exon or any sequence
     contig::Int16
@@ -89,13 +97,14 @@ function add(index::Index, seq::Sequence, coord::Coord)
     return true
 end
 
+
 # add and index all kmers of a contig
 function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
     len = length(contig_seq)
     for i in 1:len-KMER+1
         seq = contig_seq[i:i+KMER-1]
         add(index, seq, Coord(contig_number, i, 1))
-        add(index, ~seq, Coord(contig_number, i, -1))
+        add(index, ~seq, Coord(contig_number, i+KMER-1, -1))
     end
 end
 

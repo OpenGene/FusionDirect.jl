@@ -109,6 +109,7 @@ function make_connected_fusion(index, ref, seg, coords)
     l2 = seg[2][1]
     r2 = seg[2][2]
     conjunct = div(r1+l2, 2)
+    #display_coords(coords)
     fusion_left = Coord(coords[l1].contig, coords[l1].pos + coords[l1].strand * (conjunct - l1), coords[l1].strand)
     fusion_right = Coord(coords[l2].contig, coords[l2].pos + coords[l2].strand * (conjunct - l2), coords[l2].strand)
     return fusion_left, fusion_right

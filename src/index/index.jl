@@ -12,12 +12,31 @@ type Coord
     Coord(contig, pos, strand = 1) = new(Int16(contig), Int32(pos), Int16(strand))
 end
 
+# for debugging
+function display_coords(coords::Array{Coord, 1})
+    i = 0
+    for coord in coords
+        if valid(coord)
+            print("(", coord.strand>0?"+":"-", coord.contig, ":", coord.pos, ")\t")
+        elseif coord.contig == -1
+            print("(duplicate)\t")
+        elseif coord.contig == -2
+            print("(unknown)\t")
+        end
+        i+=1
+        if i%10 == 0
+            print("\n")
+        end
+    end
+    print("\n")
+end
+
 # generate a coord represents a kmer key collision
 function dup_coord()
     return Coord(-1, 0)
 end
 
-# generate a coord represents a kmer key collision
+# generate a coord represents a unknown key
 function unknown_coord()
     return Coord(-2, 0)
 end
@@ -76,12 +95,7 @@ function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
     for i in 1:len-KMER+1
         seq = contig_seq[i:i+KMER-1]
         add(index, seq, Coord(contig_number, i, 1))
-    end
-    reverse = ~contig_seq
-    for i in 1:len-KMER+1
-        seq = reverse[i:i+KMER-1]
-        # here we align the position to the + strand for processing pair end sequence easier
-        add(index, seq, Coord(contig_number, len-KMER+1, -1))
+        add(index, ~seq, Coord(contig_number, i, -1))
     end
 end
 

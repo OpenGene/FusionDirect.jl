@@ -2,7 +2,6 @@
 
 [![Build Status](https://travis-ci.org/OpenGene/FusionDirect.jl.svg?branch=master)](https://travis-ci.org/OpenGene/FusionDirect.jl)
 
-# FusionDirect
 detect gene fusion directly from fastq files
 
 ## Features
@@ -18,7 +17,7 @@ detect gene fusion directly from fastq files
 Pkg.clone("https://github.com/OpenGene/FusionDirect.jl.git")
 ```
 
-## Use as a package
+## Use FusionDirect as a package
 ```julia
 using FusionDirect
 
@@ -39,6 +38,7 @@ julia fusion.jl -f <REF> -b <BED> -l <READ1> -r <READ2> > output.fa
 ```
 
 ## Sample output
+The `+` or `-` means forward strand or reverse strand
 ```
 #Fusion:ALK-EML4
 >ALK|-|chr2:30144237_EML4|+|chr2:42396619/1

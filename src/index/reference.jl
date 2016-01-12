@@ -26,7 +26,7 @@ function load_folder_reference(ref_folder::AbstractString, ref::Dict{AbstractStr
     end
 end
 
-# load the whold reference to a Dict{AbstractString, Sequence}
+# load the whole reference to a Dict{AbstractString, Sequence}
 # the ref_path can be either a single reference fa file, or a folder contains reference files
 # all reference files can be gzipped
 function load_reference(ref_path::AbstractString)

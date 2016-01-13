@@ -3,7 +3,7 @@ const THRESHOLD = 30
 # ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
 function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
-    panel_index, bed, panel_ref = index_bed(ref_folder, bed_file)
+    panel, panel_seq, panel_index = index_bed(ref_folder, bed_file)
     # pair end sequencing
     if r2fq != ""
         io = fastq_open_pair(r1fq, r2fq)
@@ -11,29 +11,29 @@ function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::Abst
         while (pair = fastq_read_pair(io)) != false
             matches = detect_pair(panel_index, pair)
             if length(matches)>1
-                fusion_left, fusion_right = verify_fusion_pair(panel_index, bed, panel_ref, pair)
+                fusion_left, fusion_right = verify_fusion_pair(panel_index, panel, panel_seq, pair)
                 if fusion_left!=false && fusion_right!=false && distance(fusion_left, fusion_right)>1000
                     add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
                 end
             end
         end
-        display_fusion_pair(fusion_pairs, panel_ref, bed)
+        display_fusion_pair(fusion_pairs, panel_seq, panel)
     end
 end
 
-function display_fusion_pair(fusion_pairs, panel_ref, bed)
+function display_fusion_pair(fusion_pairs, panel_seq, panel)
     for (fusion_key, fusion_reads) in fusion_pairs
         contig1, contig2 = fusion_key
-        name1 = bed[contig1]["name"]
-        name2 = bed[contig2]["name"]
+        name1 = panel[contig1]["name"]
+        name2 = panel[contig2]["name"]
         # give the fusion as a fasta comment line
         print("#Fusion:", name1, "-", name2, "\n")
         # display all reads support this fusion
         for reads in fusion_reads
             fusion_left, fusion_right, pair = reads
             name = ">"
-            name = name * bed[fusion_left.contig]["name"] * "|" * strand_name(fusion_left.strand) * "|" * coord_to_chr(fusion_left, bed) * "_"
-            name = name * bed[fusion_right.contig]["name"] * "|" * strand_name(fusion_right.strand)  * "|" * coord_to_chr(fusion_right, bed) * "/"
+            name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left.strand) * "|" * coord_to_chr(fusion_left, panel) * "_"
+            name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right.strand)  * "|" * coord_to_chr(fusion_right, panel) * "/"
             print(name, "1\n",pair.read1.sequence.seq,"\n")
             print(name, "2\n",pair.read2.sequence.seq,"\n")
         end
@@ -44,9 +44,9 @@ function strand_name(strand)
     return strand>0?"+":"-"
 end
 
-function coord_to_chr(coord, bed)
-    from = bed[coord.contig]["from"]
-    chr = bed[coord.contig]["chr"]
+function coord_to_chr(coord, panel)
+    from = panel[coord.contig]["from"]
+    chr = panel[coord.contig]["chr"]
     pos = from + coord.pos 
     return chr * ":" * string(pos)
 end
@@ -59,30 +59,30 @@ function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
     push!(fusion_pairs[key], (fusion_left, fusion_right, pair))
 end
 
-function verify_fusion_se(panel_index, bed, panel_ref, sequence)
-    seg1, coords1 = segment(panel_index, sequence, panel_ref)
+function verify_fusion_se(panel_index, panel, panel_seq, sequence)
+    seg1, coords1 = segment(panel_index, sequence, panel_seq)
     if length(seg1) > 1
-        return make_connected_fusion(panel_index, panel_ref, seg1, coords1)
+        return make_connected_fusion(panel_index, panel_seq, seg1, coords1)
     end
 end
 
-function verify_fusion_pair(panel_index, bed, panel_ref, pair)
+function verify_fusion_pair(panel_index, panel, panel_seq, pair)
     offset, overlap_len, distance = overlap(pair)
     # this pair is overlapped, so merged it and segment the merged sequence
     if overlap_len>0 && distance<5
         seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
-        seg, coords = segment(panel_index, seq, panel_ref)
+        seg, coords = segment(panel_index, seq, panel_seq)
         if length(seg) > 1
-            return make_connected_fusion(panel_index, panel_ref, seg, coords)
+            return make_connected_fusion(panel_index, panel_seq, seg, coords)
         end
     else
-        seg1, coords1 = segment(panel_index, pair.read1.sequence, panel_ref)
+        seg1, coords1 = segment(panel_index, pair.read1.sequence, panel_seq)
         if length(seg1) > 1
-            return make_connected_fusion(panel_index, panel_ref, seg1, coords1)
+            return make_connected_fusion(panel_index, panel_seq, seg1, coords1)
         end
-        seg2, coords2 = segment(panel_index, pair.read2.sequence, panel_ref)
+        seg2, coords2 = segment(panel_index, pair.read2.sequence, panel_seq)
         if length(seg2) > 1
-            return make_connected_fusion(panel_index, panel_ref, seg2, coords2)
+            return make_connected_fusion(panel_index, panel_seq, seg2, coords2)
         end
         if length(seg1)==0 || length(seg2) == 0 || seg1[1][1] == 0 || seg2[1][1] == 0 
             return false, false
@@ -103,7 +103,7 @@ function verify_fusion_pair(panel_index, bed, panel_ref, pair)
     return false, false
 end
 
-function make_connected_fusion(panel_index, panel_ref, seg, coords)
+function make_connected_fusion(panel_index, panel_seq, seg, coords)
     l1 = seg[1][1]
     r1 = seg[1][2]
     l2 = seg[2][1]
@@ -116,7 +116,7 @@ function make_connected_fusion(panel_index, panel_ref, seg, coords)
 end
 
 # detect fusion and find the segmentations
-function segment(panel_index::Index, seq::Sequence, panel_ref)
+function segment(panel_index::Index, seq::Sequence, panel_seq)
     counts, coords = stat(panel_index, seq)
     clusters = cluster(coords)
     regions = Dict()
@@ -161,7 +161,7 @@ function filter_region(regions, coords)
 end
 
 
-# span the cluster on the panel_ref to find the region
+# span the cluster on the panel_seq to find the region
 function span(cluster, coords)
     left = length(coords)
     right = 1

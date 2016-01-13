@@ -116,8 +116,8 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     bed_file = readall(io)
     lines = split(bed_file, '\n')
     contig_number = 0
-    bed = Dict{Int16, Dict{}}()
-    panel_ref = Dict{Int16, Sequence}()
+    panel = Dict{Int16, Dict{}}()
+    panel_seq = Dict{Int16, Sequence}()
     chr_bed = Dict{ASCIIString, Array{Int}}()
     for line in lines
         line = rstrip(line, '\n')
@@ -134,7 +134,7 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         from = parse(Int64, ASCIIString(cols[2]))
         to = parse(Int64, ASCIIString(cols[3]))
         contig_name = ASCIIString(cols[4])
-        bed[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
+        panel[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
     end
     for (chr,contig_numbers) in chr_bed
         chr_file = ref_folder * "/" * chr * ".fa"
@@ -143,12 +143,12 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
             error("cannot load data of chromosome $chr")
         end
         for contig_number in contig_numbers
-            from = bed[contig_number]["from"]
-            to = bed[contig_number]["to"]
+            from = panel[contig_number]["from"]
+            to = panel[contig_number]["to"]
             contig_seq = chr_seq[from:to]
             index_contig(panel_index, contig_seq, contig_number)
-            panel_ref[contig_number] = contig_seq
+            panel_seq[contig_number] = contig_seq
         end
     end
-    return panel_index, bed, panel_ref
+    return panel, panel_seq, panel_index
 end

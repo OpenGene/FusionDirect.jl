@@ -64,10 +64,7 @@ is_dup(coord::Coord) = (coord.contig == -1)
 is_unknown(coord::Coord) = (coord.contig == -2)
 valid(coord::Coord) = (coord.contig >= 0)
 
-type Index
-    data::Dict{Int64, Coord}
-    Index() = new(Dict{Int64, Coord}())
-end
+typealias KmerCoord Dict{Int64, Coord}
 
 function kmer2key(seq::Sequence)
     kmer2key(seq.seq)
@@ -87,31 +84,31 @@ function kmer2key(str::ASCIIString)
 end
 
 # add and index a kmer
-function add(index::Index, seq::Sequence, coord::Coord)
+function add(kmer_coord::KmerCoord, seq::Sequence, coord::Coord)
     key = kmer2key(seq)
-    if key in keys(index.data)
-        index.data[key] = dup_coord()
+    if key in keys(kmer_coord)
+        kmer_coord[key] = dup_coord()
         return false
     end
-    index.data[key] = coord
+    kmer_coord[key] = coord
     return true
 end
 
 
 # add and index all kmers of a contig
-function index_contig(index::Index, contig_seq::Sequence, contig_number::Int)
+function index_contig(kmer_coord::KmerCoord, contig_seq::Sequence, contig_number::Int)
     len = length(contig_seq)
     for i in 1:len-KMER+1
         seq = contig_seq[i:i+KMER-1]
-        add(index, seq, Coord(contig_number, i, 1))
-        add(index, ~seq, Coord(contig_number, i+KMER-1, -1))
+        add(kmer_coord, seq, Coord(contig_number, i, 1))
+        add(kmer_coord, ~seq, Coord(contig_number, i+KMER-1, -1))
     end
 end
 
 # ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
-function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
-    panel_index = Index()
+function create_index_bed(ref_folder::AbstractString, bed_file::AbstractString)
+    panel_kmer_coord = KmerCoord()
     io = open(bed_file)
     bed_file = readall(io)
     lines = split(bed_file, '\n')
@@ -146,9 +143,18 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
             from = panel[contig_number]["from"]
             to = panel[contig_number]["to"]
             contig_seq = chr_seq[from:to]
-            index_contig(panel_index, contig_seq, contig_number)
+            index_contig(panel_kmer_coord, contig_seq, contig_number)
             panel_seq[contig_number] = contig_seq
         end
     end
-    return panel, panel_seq, panel_index
+    return Dict("panel"=>panel, "seq"=>panel_seq, "kmer_coord"=>panel_kmer_coord)
+end
+
+function detect_index_cache(ref_folder::AbstractString, bed_file::AbstractString)
+    return false
+end
+
+function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
+    kmer_coord = create_index_bed(ref_folder, bed_file)
+    return kmer_coord
 end

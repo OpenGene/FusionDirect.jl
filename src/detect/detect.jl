@@ -3,15 +3,18 @@ const THRESHOLD = 30
 # ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
 function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
-    panel, panel_seq, panel_index = index_bed(ref_folder, bed_file)
+    index = index_bed(ref_folder, bed_file)
+    panel = index["panel"]
+    panel_seq = index["seq"]
+    panel_kmer_coord = index["kmer_coord"]
     # pair end sequencing
     if r2fq != ""
         io = fastq_open_pair(r1fq, r2fq)
         fusion_pairs = Dict()
         while (pair = fastq_read_pair(io)) != false
-            matches = detect_pair(panel_index, pair)
+            matches = detect_pair(panel_kmer_coord, pair)
             if length(matches)>1
-                fusion_left, fusion_right = verify_fusion_pair(panel_index, panel, panel_seq, pair)
+                fusion_left, fusion_right = verify_fusion_pair(panel_kmer_coord, panel, panel_seq, pair)
                 if fusion_left!=false && fusion_right!=false && distance(fusion_left, fusion_right)>1000
                     add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
                 end
@@ -59,30 +62,30 @@ function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
     push!(fusion_pairs[key], (fusion_left, fusion_right, pair))
 end
 
-function verify_fusion_se(panel_index, panel, panel_seq, sequence)
-    seg1, coords1 = segment(panel_index, sequence, panel_seq)
+function verify_fusion_se(panel_kmer_coord, panel, panel_seq, sequence)
+    seg1, coords1 = segment(panel_kmer_coord, sequence, panel_seq)
     if length(seg1) > 1
-        return make_connected_fusion(panel_index, panel_seq, seg1, coords1)
+        return make_connected_fusion(panel_kmer_coord, panel_seq, seg1, coords1)
     end
 end
 
-function verify_fusion_pair(panel_index, panel, panel_seq, pair)
+function verify_fusion_pair(panel_kmer_coord, panel, panel_seq, pair)
     offset, overlap_len, distance = overlap(pair)
     # this pair is overlapped, so merged it and segment the merged sequence
     if overlap_len>0 && distance<5
         seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
-        seg, coords = segment(panel_index, seq, panel_seq)
+        seg, coords = segment(panel_kmer_coord, seq, panel_seq)
         if length(seg) > 1
-            return make_connected_fusion(panel_index, panel_seq, seg, coords)
+            return make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
         end
     else
-        seg1, coords1 = segment(panel_index, pair.read1.sequence, panel_seq)
+        seg1, coords1 = segment(panel_kmer_coord, pair.read1.sequence, panel_seq)
         if length(seg1) > 1
-            return make_connected_fusion(panel_index, panel_seq, seg1, coords1)
+            return make_connected_fusion(panel_kmer_coord, panel_seq, seg1, coords1)
         end
-        seg2, coords2 = segment(panel_index, pair.read2.sequence, panel_seq)
+        seg2, coords2 = segment(panel_kmer_coord, pair.read2.sequence, panel_seq)
         if length(seg2) > 1
-            return make_connected_fusion(panel_index, panel_seq, seg2, coords2)
+            return make_connected_fusion(panel_kmer_coord, panel_seq, seg2, coords2)
         end
         if length(seg1)==0 || length(seg2) == 0 || seg1[1][1] == 0 || seg2[1][1] == 0 
             return false, false
@@ -103,7 +106,7 @@ function verify_fusion_pair(panel_index, panel, panel_seq, pair)
     return false, false
 end
 
-function make_connected_fusion(panel_index, panel_seq, seg, coords)
+function make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
     l1 = seg[1][1]
     r1 = seg[1][2]
     l2 = seg[2][1]
@@ -116,8 +119,8 @@ function make_connected_fusion(panel_index, panel_seq, seg, coords)
 end
 
 # detect fusion and find the segmentations
-function segment(panel_index::Index, seq::Sequence, panel_seq)
-    counts, coords = stat(panel_index, seq)
+function segment(panel_kmer_coord::KmerCoord, seq::Sequence, panel_seq)
+    counts, coords = stat(panel_kmer_coord, seq)
     clusters = cluster(coords)
     regions = Dict()
     for cluster in clusters
@@ -226,9 +229,9 @@ function consistent(coords::Array{Coord, 1}, p1, p2)
 end
 
 # detect fusion in a pair of reads
-function detect_pair(panel_index::Index, pair::FastqPair)
-    match1 = detect_read(panel_index, pair.read1.sequence)
-    match2 = detect_read(panel_index, pair.read2.sequence)
+function detect_pair(panel_kmer_coord::KmerCoord, pair::FastqPair)
+    match1 = detect_read(panel_kmer_coord, pair.read1.sequence)
+    match2 = detect_read(panel_kmer_coord, pair.read2.sequence)
     # merge them
     for m in match2
         if (m in match1) == false
@@ -240,8 +243,8 @@ end
 
 # simple fusion detection in a sequence
 # this function is very fast and is not accurate
-function detect_read(panel_index::Index, seq::Sequence)
-    counts, coords = stat(panel_index, seq)
+function detect_read(panel_kmer_coord::KmerCoord, seq::Sequence)
+    counts, coords = stat(panel_kmer_coord, seq)
     matches = Array{Int16, 1}()
     for (k,v) in counts
         if v > THRESHOLD
@@ -252,14 +255,14 @@ function detect_read(panel_index::Index, seq::Sequence)
 end
 
 # stat the coordinations of kmers
-function stat(panel_index::Index, seq::Sequence)
+function stat(panel_kmer_coord::KmerCoord, seq::Sequence)
     len = length(seq)
     coords = [unknown_coord() for i in 1:len]
     for i in 1:len-KMER+1
         kmer = seq[i:i+KMER-1]
         key = kmer2key(kmer)
-        if key in keys(panel_index.data)
-            coords[i] = panel_index.data[key]
+        if key in keys(panel_kmer_coord)
+            coords[i] = panel_kmer_coord[key]
         end
     end
 

@@ -105,9 +105,9 @@ function index_contig(kmer_coord::KmerCoord, contig_seq::Sequence, contig_number
     end
 end
 
-# ref_folder is a folder contains fasta files by chromosomes
+# ref_path is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
-function create_index_bed(ref_folder::AbstractString, bed_file::AbstractString)
+function create_index_bed(ref_path::AbstractString, bed_file::AbstractString)
     panel_kmer_coord = KmerCoord()
     io = open(bed_file)
     bed_file = readall(io)
@@ -134,7 +134,7 @@ function create_index_bed(ref_folder::AbstractString, bed_file::AbstractString)
         panel[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
     end
     for (chr,contig_numbers) in chr_bed
-        chr_file = ref_folder * "/" * chr * ".fa"
+        chr_file = ref_path * "/" * chr * ".fa"
         chr_seq = load_chr(chr_file, chr)
         if chr_seq==false
             error("cannot load data of chromosome $chr")
@@ -150,11 +150,28 @@ function create_index_bed(ref_folder::AbstractString, bed_file::AbstractString)
     return Dict("panel"=>panel, "seq"=>panel_seq, "kmer_coord"=>panel_kmer_coord)
 end
 
-function detect_index_cache(ref_folder::AbstractString, bed_file::AbstractString)
-    return false
+function get_cache_path(ref_path::AbstractString, bed_file::AbstractString)
+    ref_name = basename(ref_path) * "." * string(filesize(ref_path))
+    bed_name = basename(bed_file) * "." * string(filesize(bed_file))
+    cache_name = bed_name * "_" * ref_name * ".idx"
+    cache_path = joinpath(dirname(bed_file), cache_name)
+    return cache_path
 end
 
-function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
-    kmer_coord = create_index_bed(ref_folder, bed_file)
-    return kmer_coord
+function index_bed(ref_path::AbstractString, bed_file::AbstractString)
+    cache_path = get_cache_path(ref_path, bed_file)
+    # load the index from a cache file
+    if isfile(cache_path) && isreadable(cache_path)
+        io = open(cache_path)
+        index = deserialize(io)
+        return index
+    else
+        index = create_index_bed(ref_path, bed_file)
+        # save the index to a cache file
+        if iswritable(cache_path)
+            io = open(cache_path, "w")
+            serialize(io, index)
+        end
+        return index
+    end
 end

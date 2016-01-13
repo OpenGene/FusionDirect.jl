@@ -1,9 +1,9 @@
 const THRESHOLD = 30
 
-# ref_folder is a folder contains fasta files by chromosomes
+# ref_path is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
-function detect(ref_folder::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
-    index = index_bed(ref_folder, bed_file)
+function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
+    index = index_bed(ref_path, bed_file)
     panel = index["panel"]
     panel_seq = index["seq"]
     panel_kmer_coord = index["kmer_coord"]

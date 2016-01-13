@@ -111,13 +111,13 @@ end
 # ref_folder is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
 function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
-    index = Index()
+    panel_index = Index()
     io = open(bed_file)
     bed_file = readall(io)
     lines = split(bed_file, '\n')
     contig_number = 0
     bed = Dict{Int16, Dict{}}()
-    ref = Dict{Int16, Sequence}()
+    panel_ref = Dict{Int16, Sequence}()
     chr_bed = Dict{ASCIIString, Array{Int}}()
     for line in lines
         line = rstrip(line, '\n')
@@ -146,9 +146,9 @@ function index_bed(ref_folder::AbstractString, bed_file::AbstractString)
             from = bed[contig_number]["from"]
             to = bed[contig_number]["to"]
             contig_seq = chr_seq[from:to]
-            index_contig(index, contig_seq, contig_number)
-            ref[contig_number] = contig_seq
+            index_contig(panel_index, contig_seq, contig_number)
+            panel_ref[contig_number] = contig_seq
         end
     end
-    return index, bed, ref
+    return panel_index, bed, panel_ref
 end

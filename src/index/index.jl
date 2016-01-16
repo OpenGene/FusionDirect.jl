@@ -177,6 +177,7 @@ function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
         while (chrfa = fasta_read(io))!=false
             if chrfa.name in keys(chr_contigs)
                 index_chr_bed(chrfa, panel_kmer_coord, chr_contigs, panel, panel_seq)
+                println("index_chr_bed " * chrfa.name)
             end
             push!(ref, Dict("file"=>ref_file, "position"=>pos, "length"=>length(chrfa)))
             pos = position(io)
@@ -208,6 +209,8 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     end
 
     # run parallel for indexing
+    println("tasks:" * string(length(tasks)))
+    println("start worker processes")
     results = pmap(make_kmer_coord_list_chr, tasks)
     #results = []
     #for task in tasks

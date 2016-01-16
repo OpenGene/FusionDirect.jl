@@ -106,18 +106,13 @@ function index_contig(kmer_coord::KmerCoord, contig_seq::Sequence, contig_number
     end
 end
 
-# ref_path is a folder contains fasta files by chromosomes
-# like chr1.fa, chr2.fa ...
-function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
-    ref = load_reference(ref_path)
-    panel_kmer_coord = KmerCoord()
+function load_bed(bed_file::AbstractString)
     io = open(bed_file)
     bed_file = readall(io)
     lines = split(bed_file, '\n')
     contig_number = 0
     panel = Dict{Int16, Dict{}}()
-    panel_seq = Dict{Int16, Sequence}()
-    chr_bed = Dict{ASCIIString, Array{Int}}()
+    chr_contigs = Dict{ASCIIString, Array{Int}}()
     for line in lines
         line = rstrip(line, '\n')
         cols = split(line)
@@ -126,36 +121,75 @@ function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
         end
         contig_number += 1
         chr = ASCIIString(cols[1])
-        if (chr in keys(chr_bed))==false
-            chr_bed[chr]=Array{Int,1}()
+        if (chr in keys(chr_contigs))==false
+            chr_contigs[chr]=Array{Int,1}()
         end
-        push!(chr_bed[chr], contig_number)
+        push!(chr_contigs[chr], contig_number)
         from = parse(Int64, ASCIIString(cols[2]))
         to = parse(Int64, ASCIIString(cols[3]))
         contig_name = ASCIIString(cols[4])
         panel[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
     end
-    for (chr,contig_numbers) in chr_bed
-        chr_file = ref_path * "/" * chr * ".fa"
-        chr_seq = load_chr(chr_file, chr)
-        if chr_seq==false
-            error("cannot load data of chromosome $chr")
+    return panel, chr_contigs
+end
+
+function get_ref_files(ref_path::AbstractString)
+    ref_files = []
+    # if ref_path is a folder, then find all fa files in it
+    if isdir(ref_path)
+        files = readdir(ref_path)
+        for file in files
+            if endswith(file, ".fa")
+                push!(ref_files, joinpath(ref_path, file))
+            end
         end
-        for contig_number in contig_numbers
-            from = panel[contig_number]["from"]
-            to = panel[contig_number]["to"]
-            contig_seq = chr_seq[from:to]
-            index_contig(panel_kmer_coord, contig_seq, contig_number)
-            panel_seq[contig_number] = contig_seq
+    else
+        push!(ref_files, ref_path)
+    end
+    return ref_files
+end
+
+function index_chr_bed(chrfa::FastaRead, panel_kmer_coord::KmerCoord, chr_contigs, panel, panel_seq)
+    contig_numbers = chr_contigs[chrfa.name]
+    chr_seq = chrfa.sequence
+    for contig_number in contig_numbers
+        from = panel[contig_number]["from"]
+        to = panel[contig_number]["to"]
+        contig_seq = chr_seq[from:to]
+        index_contig(panel_kmer_coord, contig_seq, contig_number)
+        panel_seq[contig_number] = contig_seq
+    end
+end
+
+# ref_path is a folder contains fasta files by chromosomes
+# like chr1.fa, chr2.fa ...
+function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
+    panel_kmer_coord = KmerCoord()
+    panel_seq = Dict{Int16, Sequence}()
+    panel, chr_contigs = load_bed(bed_file)
+    ref_files = get_ref_files(ref_path)
+
+    ref = []
+    # for each reference file, get its chromosome and index them
+    for ref_file in ref_files
+        io = fasta_open(ref_file)
+        pos = position(io)
+        while (chrfa = fasta_read(io))!=false
+            if chrfa.name in keys(chr_contigs)
+                index_chr_bed(chrfa, panel_kmer_coord, chr_contigs, panel, panel_seq)
+            end
+            push!(ref, Dict("file"=>ref_file, "position"=>pos, "length"=>length(chrfa)))
+            pos = position(io)
         end
     end
+
     ref_kmer_coords = make_kmer_coord_list(ref, panel_kmer_coord)
     return Dict("panel"=>panel, "seq"=>panel_seq, "kmer_coord"=>panel_kmer_coord, "ref_kmer_coords"=>ref_kmer_coords)
 end
 
 # make an index with the reference data and a panel
 # for each kmer of the panel, create an array, and store the coordinations of same kmer
-function make_kmer_coord_list(ref::Array{FastaRead, 1}, panel_kmer_coord::KmerCoord)
+function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     ref_index = KmerCoordList()
     panel_keys = keys(panel_kmer_coord)
     total = 0
@@ -166,8 +200,8 @@ function make_kmer_coord_list(ref::Array{FastaRead, 1}, panel_kmer_coord::KmerCo
     # create parallel tasks
     tasks = []
     for chrid in 1:length(ref)
-        chrseq = ref[chrid].sequence
-        task = Dict("chrid"=>chrid, "chrseq"=>chrseq, "panel"=>panel_kmer_coord)
+        chrinfo = ref[chrid]
+        task = Dict("chrid"=>chrid, "chrinfo"=>chrinfo, "panel"=>panel_kmer_coord)
         push!(tasks, task)
     end
     if length(workers()) <= 1
@@ -176,6 +210,10 @@ function make_kmer_coord_list(ref::Array{FastaRead, 1}, panel_kmer_coord::KmerCo
 
     # run parallel for indexing
     results = pmap(make_kmer_coord_list_chr, tasks)
+    #results = []
+    #for task in tasks
+    #    push!(results, make_kmer_coord_list_chr(task))
+    #end
 
     # merge the result index
     for k in panel_keys
@@ -196,12 +234,18 @@ end
 # make an index with a chromosome of the reference data and a panel
 function make_kmer_coord_list_chr(task)
     chrid=task["chrid"]
-    chrseq=task["chrseq"]
+    chrinfo=task["chrinfo"]
+    io = fasta_open(chrinfo["file"])
+    seek(io, chrinfo["position"])
+    len = chrinfo["length"]
+    println("chrosome:" * chrinfo["file"])
+    println(chrinfo["position"])
+    fa = fasta_read(io)
+    chrseq = fa.sequence
     panel_kmer_coord=task["panel"]
     ref_index = KmerCoordList()
     panel_keys = keys(panel_kmer_coord)
     total = 0
-    len = length(chrseq)
     for i in 1:len-KMER+1
         if i%1000000 == 0
             println("$chrid:$i/$total")

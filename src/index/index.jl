@@ -240,7 +240,7 @@ function make_kmer_coord_list_chr(task)
     io = fasta_open(chrinfo["file"])
     seek(io, chrinfo["position"])
     len = chrinfo["length"]
-    println("chrosome:" * chrinfo["file"])
+    println("chromosome:" * chrinfo["file"])
     fa = fasta_read(io)
     chrseq = fa.sequence
     panel_kmer_coord=task["panel"]

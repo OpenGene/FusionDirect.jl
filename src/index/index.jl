@@ -191,9 +191,8 @@ end
 # for each kmer of the panel, create an array, and store the coordinations of same kmer
 function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     ref_index = KmerCoordList()
-    panel_keys = keys(panel_kmer_coord)
     total = 0
-    for k in panel_keys
+    for k in keys(panel_kmer_coord)
         ref_index[k]=Array{Coord, 1}()
     end
 
@@ -216,7 +215,7 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     #end
 
     # merge the result index
-    for k in panel_keys
+    for k in keys(panel_kmer_coord)
         for result in results
             if haskey(result, k)
                 append!(ref_index[k], result[k])
@@ -239,12 +238,10 @@ function make_kmer_coord_list_chr(task)
     seek(io, chrinfo["position"])
     len = chrinfo["length"]
     println("chrosome:" * chrinfo["file"])
-    println(chrinfo["position"])
     fa = fasta_read(io)
     chrseq = fa.sequence
     panel_kmer_coord=task["panel"]
     ref_index = KmerCoordList()
-    panel_keys = keys(panel_kmer_coord)
     total = 0
     for i in 1:len-KMER+1
         if i%1000000 == 0
@@ -252,7 +249,7 @@ function make_kmer_coord_list_chr(task)
         end
         seq = chrseq[i:i+KMER-1]
         key = kmer2key(seq)
-        if key in panel_keys
+        if haskey(panel_kmer_coord, key)
             if !haskey(ref_index, key)
                 ref_index[key]=Array{Coord, 1}()
             end
@@ -260,7 +257,7 @@ function make_kmer_coord_list_chr(task)
             total+=1
         end
         key = kmer2key(~seq)
-        if key in panel_keys
+        if haskey(panel_kmer_coord, key)
             if !haskey(ref_index, key)
                 ref_index[key]=Array{Coord, 1}()
             end

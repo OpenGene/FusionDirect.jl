@@ -9,7 +9,7 @@ contig: AAAATTTTCCCCGGG[G]TCATGATTACCAACCAATACCGTGGGATGG
 position of the first 16-mer AAAATTTTCCCCGGGG is: 1
 position of reverse compelement of the first 16-mer, CCCCGGGGAAAATTTT is: 1+16-1 = 16, the position bracketed
 """
-type Coord
+immutable Coord
     # of which contig, usually a chr, a gene, an exon or any sequence
     contig::Int16
     # offset in this contig
@@ -65,6 +65,7 @@ is_unknown(coord::Coord) = (coord.contig == -2)
 valid(coord::Coord) = (coord.contig >= 0)
 
 typealias KmerCoord Dict{Int64, Coord}
+typealias KmerCoordList Dict{Int64, Array{Coord, 1}}
 
 function kmer2key(seq::Sequence)
     kmer2key(seq.seq)
@@ -83,8 +84,8 @@ function kmer2key(str::ASCIIString)
     return key
 end
 
-# add and index a kmer
-function add(kmer_coord::KmerCoord, seq::Sequence, coord::Coord)
+# add and index a kmer of a panel
+function add_to_panel_index(kmer_coord::KmerCoord, seq::Sequence, coord::Coord)
     key = kmer2key(seq)
     if key in keys(kmer_coord)
         kmer_coord[key] = dup_coord()
@@ -100,14 +101,15 @@ function index_contig(kmer_coord::KmerCoord, contig_seq::Sequence, contig_number
     len = length(contig_seq)
     for i in 1:len-KMER+1
         seq = contig_seq[i:i+KMER-1]
-        add(kmer_coord, seq, Coord(contig_number, i, 1))
-        add(kmer_coord, ~seq, Coord(contig_number, i+KMER-1, -1))
+        add_to_panel_index(kmer_coord, seq, Coord(contig_number, i, 1))
+        add_to_panel_index(kmer_coord, ~seq, Coord(contig_number, i+KMER-1, -1))
     end
 end
 
 # ref_path is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
-function create_index_bed(ref_path::AbstractString, bed_file::AbstractString)
+function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
+    ref = load_reference(ref_path)
     panel_kmer_coord = KmerCoord()
     io = open(bed_file)
     bed_file = readall(io)
@@ -147,7 +149,82 @@ function create_index_bed(ref_path::AbstractString, bed_file::AbstractString)
             panel_seq[contig_number] = contig_seq
         end
     end
-    return Dict("panel"=>panel, "seq"=>panel_seq, "kmer_coord"=>panel_kmer_coord)
+    ref_kmer_coords = make_kmer_coord_list(ref, panel_kmer_coord)
+    return Dict("panel"=>panel, "seq"=>panel_seq, "kmer_coord"=>panel_kmer_coord, "ref_kmer_coords"=>ref_kmer_coords)
+end
+
+# make an index with the reference data and a panel
+# for each kmer of the panel, create an array, and store the coordinations of same kmer
+function make_kmer_coord_list(ref::Array{FastaRead, 1}, panel_kmer_coord::KmerCoord)
+    ref_index = KmerCoordList()
+    panel_keys = keys(panel_kmer_coord)
+    total = 0
+    for k in panel_keys
+        ref_index[k]=Array{Coord, 1}()
+    end
+
+    # create parallel tasks
+    tasks = []
+    for chrid in 1:length(ref)
+        chrseq = ref[chrid].sequence
+        task = Dict("chrid"=>chrid, "chrseq"=>chrseq, "panel"=>panel_kmer_coord)
+        push!(tasks, task)
+    end
+    if length(workers()) <= 1
+        #addprocs()
+    end
+
+    # run parallel for indexing
+    results = pmap(make_kmer_coord_list_chr, tasks)
+
+    # merge the result index
+    for k in panel_keys
+        for result in results
+            if haskey(result, k)
+                append!(ref_index[k], result[k])
+            end
+        end
+    end
+
+    # destroy worker processes
+    rmprocs(workers())
+
+    return ref_index
+end
+
+# run in parallel
+# make an index with a chromosome of the reference data and a panel
+function make_kmer_coord_list_chr(task)
+    chrid=task["chrid"]
+    chrseq=task["chrseq"]
+    panel_kmer_coord=task["panel"]
+    ref_index = KmerCoordList()
+    panel_keys = keys(panel_kmer_coord)
+    total = 0
+    len = length(chrseq)
+    for i in 1:len-KMER+1
+        if i%1000000 == 0
+            println("$chrid:$i/$total")
+        end
+        seq = chrseq[i:i+KMER-1]
+        key = kmer2key(seq)
+        if key in panel_keys
+            if !haskey(ref_index, key)
+                ref_index[key]=Array{Coord, 1}()
+            end
+            push!(ref_index[key], Coord(Int16(chrid), i, 1))
+            total+=1
+        end
+        key = kmer2key(~seq)
+        if key in panel_keys
+            if !haskey(ref_index, key)
+                ref_index[key]=Array{Coord, 1}()
+            end
+            push!(ref_index[key], Coord(Int16(chrid), i+KMER-1, -1))
+            total+=1
+        end
+    end
+    return ref_index
 end
 
 function get_cache_path(ref_path::AbstractString, bed_file::AbstractString)
@@ -166,12 +243,12 @@ function index_bed(ref_path::AbstractString, bed_file::AbstractString)
         index = deserialize(io)
         return index
     else
-        index = create_index_bed(ref_path, bed_file)
+        println("## index doesn't exist, indexing now, it may take several minutes to a few hours")
+        println("## after the index is created, loading it will be very fast")
+        index = make_panel_index(ref_path, bed_file)
         # save the index to a cache file
-        if iswritable(cache_path)
-            io = open(cache_path, "w")
-            serialize(io, index)
-        end
+        io = open(cache_path, "w")
+        serialize(io, index)
         return index
     end
 end

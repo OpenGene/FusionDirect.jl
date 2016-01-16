@@ -10,15 +10,16 @@ function load_chr(ref_file::AbstractString, chr::AbstractString)
     return false
 end
 
-function load_single_file_reference(ref_file::AbstractString, ref::Dict{AbstractString, Sequence})
+function load_single_file_reference(ref_file::AbstractString, ref::Array{FastaRead, 1})
     io = fasta_open(ref_file)
     while (fa = fasta_read(io))!=false
-        ref[fa.name] = fa.sequence
+        push!(ref, fa)
     end
 end
 
-function load_folder_reference(ref_folder::AbstractString, ref::Dict{AbstractString, Sequence})
+function load_folder_reference(ref_folder::AbstractString, ref::Array{FastaRead, 1})
     files = readdir(ref_folder)
+    id = Int16(0)
     for file in files
         if contains(file, ".fa") || contains(file, ".fa.gz")
             load_single_file_reference(joinpath(ref_folder, file), ref)
@@ -30,7 +31,7 @@ end
 # the ref_path can be either a single reference fa file, or a folder contains reference files
 # all reference files can be gzipped
 function load_reference(ref_path::AbstractString)
-    ref = Dict{AbstractString, Sequence}()
+    ref = Array{FastaRead, 1}()
     if isdir(ref_path)
         load_folder_reference(ref_path, ref)
     else

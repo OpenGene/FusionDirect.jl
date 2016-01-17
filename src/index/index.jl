@@ -312,7 +312,7 @@ end
 function index_bed(ref_path::AbstractString, bed_file::AbstractString)
     cache_path = get_cache_path(ref_path, bed_file)
     # load the index from a cache file
-    if isfile(cache_path) && isreadable(cache_path)
+    if isfile(cache_path)
         io = open(cache_path)
         index = deserialize(io)
         return index

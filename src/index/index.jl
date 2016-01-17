@@ -230,13 +230,15 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     #    push!(results, make_kmer_coord_list_chr(task))
     #end
 
-    #print(results)
-
     # merge the result index
     i = 0
     for result in results
         i += 1
         println("merging " * string(i))
+        if isa(result, RemoteException)
+            print(result)
+            continue
+        end
         for (k, v) in result
             append!(ref_index[k], v)
         end

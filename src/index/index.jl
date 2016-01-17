@@ -233,12 +233,17 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     #print(results)
 
     # merge the result index
+    i = 0
     for result in results
+        i += 1
+        println("merging " * string(i))
         for (k, v) in result
             append!(ref_index[k], v)
         end
         gc()
     end
+
+    println("merge done")
 
     # destroy worker processes
     rmprocs(workers())
@@ -260,14 +265,14 @@ function make_kmer_coord_list_chr(task)
     io = fasta_open(chrinfo["file"])
     seek(io, chrinfo["position"])
     len = chrinfo["length"]
-    println("chromosome:" * chrinfo["file"])
+    println("indexing $chrid:" * chrinfo["file"])
     fa = fasta_read(io)
     chrseq = fa.sequence
     shared_kmer=task["shared_kmer"]
     ref_index = KmerCoordList()
     total = 0
     for i in 1:len-KMER+1
-        if i%1000000 == 0
+        if i%10000000 == 0
             println("$chrid:$i/$total")
         end
         seq = chrseq[i:i+KMER-1]
@@ -289,6 +294,7 @@ function make_kmer_coord_list_chr(task)
         end
     end
     gc()
+    println("finished $chrid:" * chrinfo["file"])
     return ref_index
 end
 

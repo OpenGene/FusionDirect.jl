@@ -188,6 +188,17 @@ function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
     return Dict("panel"=>panel, "seq"=>panel_seq, "kmer_coord"=>panel_kmer_coord, "ref_kmer_coords"=>ref_kmer_coords)
 end
 
+function make_kmer_shared_array(panel_kmer_coord::KmerCoord)
+    kmer_buffer_size = div(4^KMER, 8)
+    shared_kmer = SharedArray(UInt8, kmer_buffer_size, init=true)
+    for k in keys(panel_kmer_coord)
+        offset = div(k, 8) + 1
+        shift = k % 8
+        shared_kmer[offset] |= (0b00000001 << shift)
+    end
+    return shared_kmer
+end
+
 # make an index with the reference data and a panel
 # for each kmer of the panel, create an array, and store the coordinations of same kmer
 function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
@@ -197,11 +208,13 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
         ref_index[k]=Array{Coord, 1}()
     end
 
+    shared_kmer = make_kmer_shared_array(panel_kmer_coord)
+
     # create parallel tasks
     tasks = []
     for chrid in 1:length(ref)
         chrinfo = ref[chrid]
-        task = Dict("chrid"=>chrid, "chrinfo"=>chrinfo, "panel"=>panel_kmer_coord)
+        task = Dict("chrid"=>chrid, "chrinfo"=>chrinfo, "shared_kmer"=>shared_kmer)
         push!(tasks, task)
     end
     if length(workers()) <= 1
@@ -217,19 +230,26 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     #    push!(results, make_kmer_coord_list_chr(task))
     #end
 
+    #print(results)
+
     # merge the result index
-    for k in keys(panel_kmer_coord)
-        for result in results
-            if haskey(result, k)
-                append!(ref_index[k], result[k])
-            end
+    for result in results
+        for (k, v) in result
+            append!(ref_index[k], v)
         end
+        gc()
     end
 
     # destroy worker processes
     rmprocs(workers())
 
     return ref_index
+end
+
+function inkmer(shared_kmer::SharedArray{UInt8, 1}, k::Int64)
+    offset = div(k, 8) + 1
+    shift = k % 8 
+    return (shared_kmer[offset] & (0b00000001 << shift))>0
 end
 
 # run in parallel
@@ -243,7 +263,7 @@ function make_kmer_coord_list_chr(task)
     println("chromosome:" * chrinfo["file"])
     fa = fasta_read(io)
     chrseq = fa.sequence
-    panel_kmer_coord=task["panel"]
+    shared_kmer=task["shared_kmer"]
     ref_index = KmerCoordList()
     total = 0
     for i in 1:len-KMER+1
@@ -252,7 +272,7 @@ function make_kmer_coord_list_chr(task)
         end
         seq = chrseq[i:i+KMER-1]
         key = kmer2key(seq)
-        if haskey(panel_kmer_coord, key)
+        if inkmer(shared_kmer, key)
             if !haskey(ref_index, key)
                 ref_index[key]=Array{Coord, 1}()
             end
@@ -260,7 +280,7 @@ function make_kmer_coord_list_chr(task)
             total+=1
         end
         key = kmer2key(~seq)
-        if haskey(panel_kmer_coord, key)
+        if inkmer(shared_kmer, key)
             if !haskey(ref_index, key)
                 ref_index[key]=Array{Coord, 1}()
             end
@@ -268,6 +288,7 @@ function make_kmer_coord_list_chr(task)
             total+=1
         end
     end
+    gc()
     return ref_index
 end
 

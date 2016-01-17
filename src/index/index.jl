@@ -265,6 +265,7 @@ function make_kmer_coord_list_chr(task)
     chrid=task["chrid"]
     chrinfo=task["chrinfo"]
     io = fasta_open(chrinfo["file"])
+    chrname = basename(chrinfo["file"])
     seek(io, chrinfo["position"])
     len = chrinfo["length"]
     println("indexing $chrid:" * chrinfo["file"])
@@ -275,7 +276,7 @@ function make_kmer_coord_list_chr(task)
     total = 0
     for i in 1:len-KMER+1
         if i%10000000 == 0
-            println("$chrid:$i/$total")
+            println("$chrid-$chrname:$i/$len:$total")
         end
         seq = chrseq[i:i+KMER-1]
         key = kmer2key(seq)

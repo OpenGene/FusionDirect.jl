@@ -97,9 +97,9 @@ function verify_fusion_pair(panel_kmer_coord, panel, panel_seq, pair)
             len1 = length(coords1)
             len2= length(coords2)
             fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + coords1[l1].strand * (len1 - l1), coords1[l1].strand)
-            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + coords2[l2].strand * (len2 - l2), coords2[l2].strand)
             # reverse the strand of fusion right to align the pair in same direction
-            fusion_right.strand *= -1
+            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + coords2[l2].strand * (len2 - l2), coords2[l2].strand * -1)
+
             return fusion_left, fusion_right
         end
     end

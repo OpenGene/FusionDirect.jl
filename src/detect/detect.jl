@@ -254,14 +254,14 @@ function detect_read(panel_kmer_coord::KmerCoord, seq::Sequence)
     return matches
 end
 
-# stat the coordinations of kmers
+# get the coordinations on the panel for given sequence
 function stat(panel_kmer_coord::KmerCoord, seq::Sequence)
     len = length(seq)
     coords = [unknown_coord() for i in 1:len]
     for i in 1:len-KMER+1
         kmer = seq[i:i+KMER-1]
         key = kmer2key(kmer)
-        if key in keys(panel_kmer_coord)
+        if haskey(panel_kmer_coord, key)
             coords[i] = panel_kmer_coord[key]
         end
     end
@@ -270,7 +270,7 @@ function stat(panel_kmer_coord::KmerCoord, seq::Sequence)
     for coord in coords
         if valid(coord)
             contig = coord.contig
-            if contig in keys(counts)
+            if haskey(counts, contig)
                 counts[contig] += 1
             else
                 counts[contig] = 1
@@ -278,4 +278,18 @@ function stat(panel_kmer_coord::KmerCoord, seq::Sequence)
         end
     end
     return counts, coords
+end
+
+# get the coordinations on the whole reference for given sequence
+function stat_ref(ref_kmer_coords::KmerCoordList, seq::Sequence)
+    len = length(seq)
+    coords = Dict()
+    for i in 1:len-KMER+1
+        kmer = seq[i:i+KMER-1]
+        key = kmer2key(kmer)
+        if haskey(panel_kmer_coord, key)
+            coords[i] = panel_kmer_coord[key]
+        end
+    end
+    return coords
 end

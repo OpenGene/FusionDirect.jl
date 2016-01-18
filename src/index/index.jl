@@ -87,7 +87,7 @@ end
 # add and index a kmer of a panel
 function add_to_panel_index(kmer_coord::KmerCoord, seq::Sequence, coord::Coord)
     key = kmer2key(seq)
-    if key in keys(kmer_coord)
+    if haskey(kmer_coord, key)
         kmer_coord[key] = dup_coord()
         return false
     end
@@ -121,7 +121,7 @@ function load_bed(bed_file::AbstractString)
         end
         contig_number += 1
         chr = ASCIIString(cols[1])
-        if (chr in keys(chr_contigs))==false
+        if !haskey(chr_contigs, chr)
             chr_contigs[chr]=Array{Int,1}()
         end
         push!(chr_contigs[chr], contig_number)
@@ -175,7 +175,7 @@ function make_panel_index(ref_path::AbstractString, bed_file::AbstractString)
         io = fasta_open(ref_file)
         pos = position(io)
         while (chrfa = fasta_read(io))!=false
-            if chrfa.name in keys(chr_contigs)
+            if haskey(chr_contigs, chrfa.name)
                 index_chr_bed(chrfa, panel_kmer_coord, chr_contigs, panel, panel_seq)
                 println("index_chr_bed " * chrfa.name)
             end

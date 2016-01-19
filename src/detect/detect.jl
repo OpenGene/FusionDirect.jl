@@ -7,6 +7,7 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
     panel = index["panel"]
     panel_seq = index["seq"]
     panel_kmer_coord = index["kmer_coord"]
+    ref_kmer_coords = index["ref_kmer_coords"]
     # pair end sequencing
     if r2fq != ""
         io = fastq_open_pair(r1fq, r2fq)
@@ -14,7 +15,7 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
         while (pair = fastq_read_pair(io)) != false
             matches = detect_pair(panel_kmer_coord, pair)
             if length(matches)>1
-                fusion_left, fusion_right = verify_fusion_pair(panel_kmer_coord, panel, panel_seq, pair)
+                fusion_left, fusion_right = verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, pair)
                 if fusion_left!=false && fusion_right!=false && distance(fusion_left, fusion_right)>1000
                     add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
                 end
@@ -62,28 +63,28 @@ function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
     push!(fusion_pairs[key], (fusion_left, fusion_right, pair))
 end
 
-function verify_fusion_se(panel_kmer_coord, panel, panel_seq, sequence)
-    seg1, coords1 = segment(panel_kmer_coord, sequence, panel_seq)
+function verify_fusion_se(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, sequence)
+    seg1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, sequence, panel_seq)
     if length(seg1) > 1
         return make_connected_fusion(panel_kmer_coord, panel_seq, seg1, coords1)
     end
 end
 
-function verify_fusion_pair(panel_kmer_coord, panel, panel_seq, pair)
+function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, pair)
     offset, overlap_len, distance = overlap(pair)
     # this pair is overlapped, so merged it and segment the merged sequence
     if overlap_len>0 && distance<5
         seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
-        seg, coords = segment(panel_kmer_coord, seq, panel_seq)
+        seg, coords = segment(ref_kmer_coords, panel_kmer_coord, seq, panel_seq)
         if length(seg) > 1
             return make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
         end
     else
-        seg1, coords1 = segment(panel_kmer_coord, pair.read1.sequence, panel_seq)
+        seg1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, pair.read1.sequence, panel_seq)
         if length(seg1) > 1
             return make_connected_fusion(panel_kmer_coord, panel_seq, seg1, coords1)
         end
-        seg2, coords2 = segment(panel_kmer_coord, pair.read2.sequence, panel_seq)
+        seg2, coords2 = segment(ref_kmer_coords, panel_kmer_coord, pair.read2.sequence, panel_seq)
         if length(seg2) > 1
             return make_connected_fusion(panel_kmer_coord, panel_seq, seg2, coords2)
         end
@@ -119,7 +120,7 @@ function make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
 end
 
 # detect fusion and find the segmentations
-function segment(panel_kmer_coord::KmerCoord, seq::Sequence, panel_seq)
+function segment(ref_kmer_coords, panel_kmer_coord::KmerCoord, seq::Sequence, panel_seq)
     counts, coords = stat(panel_kmer_coord, seq)
     clusters = cluster(coords)
     regions = Dict()
@@ -133,6 +134,10 @@ function segment(panel_kmer_coord::KmerCoord, seq::Sequence, panel_seq)
     end
     # filter out those regions which are mostly inside other regions
     seg = filter_region(regions, coords)
+    if length(seg)>1
+        coords_list = stat_ref(ref_kmer_coords, seq)
+        clusters_on_ref = cluster_ref(coords_list)
+    end
     return seg, coords
 end
 
@@ -287,8 +292,8 @@ function stat_ref(ref_kmer_coords::KmerCoordList, seq::Sequence)
     for i in 1:len-KMER+1
         kmer = seq[i:i+KMER-1]
         key = kmer2key(kmer)
-        if haskey(panel_kmer_coord, key)
-            coord_lists[i] = panel_kmer_coord[key]
+        if haskey(ref_kmer_coords, key)
+            coord_lists[i] = ref_kmer_coords[key]
         end
     end
     return coord_lists

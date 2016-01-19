@@ -283,13 +283,22 @@ end
 # get the coordinations on the whole reference for given sequence
 function stat_ref(ref_kmer_coords::KmerCoordList, seq::Sequence)
     len = length(seq)
-    coords = Dict()
+    coord_lists = Dict()
     for i in 1:len-KMER+1
         kmer = seq[i:i+KMER-1]
         key = kmer2key(kmer)
         if haskey(panel_kmer_coord, key)
-            coords[i] = panel_kmer_coord[key]
+            coord_lists[i] = panel_kmer_coord[key]
         end
     end
-    return coords
+    return coord_lists
+end
+
+# clustering the kmer_coords
+function cluster_ref(coord_lists)
+    coords = Array{Coord, 1}()
+    for (k, list) in coord_lists
+        append!(coords, list)
+    end
+    return cluster(coords)
 end

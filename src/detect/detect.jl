@@ -122,7 +122,7 @@ end
 # detect fusion and find the segmentations
 function segment(ref_kmer_coords, panel_kmer_coord::KmerCoord, seq::Sequence, panel_seq)
     counts, coords = stat(panel_kmer_coord, seq)
-    clusters = cluster(coords)
+    clusters = clustering(coords)
     regions = Dict()
     for cluster in clusters
         # skip small clusters
@@ -182,7 +182,7 @@ function span(cluster, coords)
 end
 
 # clustering by distance
-function cluster(coords::Array{Coord, 1})
+function clustering(coords::Array{Coord, 1})
     points = Set(1:length(coords))
     clusters = []
     while !isempty(points)
@@ -305,5 +305,5 @@ function cluster_ref(coord_lists)
     for (k, list) in coord_lists
         append!(coords, list)
     end
-    return cluster(coords)
+    return clustering(coords)
 end

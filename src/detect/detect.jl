@@ -74,27 +74,33 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
     offset, overlap_len, distance = overlap(pair)
     # this pair is overlapped, so merged it and segment the merged sequence
     if overlap_len>0 && distance<5
-        seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
-        seg, coords = segment(ref_kmer_coords, panel_kmer_coord, seq, panel_seq)
-        if length(seg) > 1
-            return make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
+        merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+        seg_result, coords = segment(ref_kmer_coords, panel_kmer_coord, merged_seq, panel_seq)
+        if length(seg_result) > 1
+            if !is_seq_connected_on_ref(seg_result, ref_kmer_coords, merged_seq)
+                return make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
+            end
         end
     else
-        seg1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, pair.read1.sequence, panel_seq)
-        if length(seg1) > 1
-            return make_connected_fusion(panel_kmer_coord, panel_seq, seg1, coords1)
+        seg_result1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, pair.read1.sequence, panel_seq)
+        if length(seg_result1) > 1
+            if !is_seq_connected_on_ref(seg_result1, ref_kmer_coords, pair.read1.sequence)
+                return make_connected_fusion(panel_kmer_coord, panel_seq, seg_result1, coords1)
+            end
         end
-        seg2, coords2 = segment(ref_kmer_coords, panel_kmer_coord, pair.read2.sequence, panel_seq)
-        if length(seg2) > 1
-            return make_connected_fusion(panel_kmer_coord, panel_seq, seg2, coords2)
+        seg_result2, coords2 = segment(ref_kmer_coords, panel_kmer_coord, pair.read2.sequence, panel_seq)
+        if length(seg_result2) > 1
+            if !is_seq_connected_on_ref(seg_result2, ref_kmer_coords, pair.read2.sequence)
+                return make_connected_fusion(panel_kmer_coord, panel_seq, seg_result2, coords2)
+            end
         end
-        if length(seg1)==0 || length(seg2) == 0 || seg1[1][1] == 0 || seg2[1][1] == 0 
+        if length(seg_result1)==0 || length(seg_result2) == 0 || seg_result1[1][1] == 0 || seg_result2[1][1] == 0
             return false, false
         end
         # fusion of different contigs on a pair
-        if coords1[seg1[1][1]].contig != coords2[seg2[1][1]].contig
-            l1 = seg1[1][1]
-            l2 = seg2[1][1]
+        if coords1[seg_result1[1][1]].contig != coords2[seg_result2[1][1]].contig
+            l1 = seg_result1[1][1]
+            l2 = seg_result2[1][1]
             len1 = length(coords1)
             len2= length(coords2)
             fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + coords1[l1].strand * (len1 - l1), coords1[l1].strand)
@@ -105,6 +111,23 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
         end
     end
     return false, false
+end
+
+function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
+    coords_list = stat_ref(ref_kmer_coords, seq)
+    clusters_on_ref = clustering_ref(coords_list)
+    for cluster in clusters_on_ref
+        (left, right) = span_ref(cluster, length(seq))
+        # nearly cover whold sequence
+        if (right - left) > length(seq) - 30
+            return true
+        end
+        # nearly covers the two regions
+        if left < seg_result[1][1] + 10 && right > seg_result[2][2] - 10
+            return true
+        end
+    end
+    return false
 end
 
 function make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
@@ -129,19 +152,13 @@ function segment(ref_kmer_coords, panel_kmer_coord::KmerCoord, seq::Sequence, pa
         if length(cluster) < THRESHOLD
             continue
         end
-        left, right = span(cluster, coords)
+        left, right = span(cluster, length(coords))
         regions[left]=right
     end
     # filter out those regions which are mostly inside other regions
-    seg = filter_region(regions, coords)
-    if length(seg)>1
-        coords_list = stat_ref(ref_kmer_coords, seq)
-        clusters_on_ref = cluster_ref(coords_list)
-    end
-    return seg, coords
+    seg_result = filter_region(regions, coords)
+    return seg_result, coords
 end
-
-# map to gene
 
 # remove some inside regions
 function filter_region(regions, coords)
@@ -170,14 +187,26 @@ end
 
 
 # span the cluster on the panel_seq to find the region
-function span(cluster, coords)
-    left = length(coords)
+function span(cluster, seqlen)
+    left = seqlen
     right = 1
     for point in cluster
         left = min(left, point)
         right = max(right, point)
     end
-    right = min(right+KMER-1, length(coords))
+    right = min(right+KMER-1, seqlen)
+    return left, right
+end
+
+# span the cluster on the reference to find the region
+function span_ref(cluster, seqlen)
+    left = seqlen
+    right = 1
+    for point in cluster
+        left = min(left, point.first)
+        right = max(right, point.first)
+    end
+    right = min(right+KMER-1, seqlen)
     return left, right
 end
 
@@ -299,11 +328,53 @@ function stat_ref(ref_kmer_coords::KmerCoordList, seq::Sequence)
     return coord_lists
 end
 
-# clustering the kmer_coords
-function cluster_ref(coord_lists)
-    coords = Array{Coord, 1}()
-    for (k, list) in coord_lists
-        append!(coords, list)
+# clustering of the kmer_coords
+function clustering_ref(coord_lists)
+    total = Set()
+    # covert the coord list to a set of pos=>coord
+    for (pos, arr) in coord_lists
+        for coord in arr
+            push!(total, pos=>coord)
+        end
     end
-    return clustering(coords)
+
+    clusters = []
+    while !isempty(total)
+        # create a new cluster
+        seed = pop!(total)
+        # create a new cluster
+        cluster = Set()
+        push!(cluster, seed)
+        # create a new working set
+        working = Set()
+        push!(working, seed)
+        while !isempty(working)
+            current = pop!(working)
+            for p in total
+                # if it is not valid, just pop it out
+                if consistent_on_ref(current, p)
+                    pop!(total, p)
+                    push!(working, p)
+                end
+            end
+            # current is done, push the pos to current cluster
+            push!(cluster, current)
+        end
+        push!(clusters, cluster)
+    end
+    return clusters
+end
+
+function consistent_on_ref(p1, p2)
+    dis = p2.second - p1.second
+    if dis > 1000
+        return false
+    end
+
+    # the line of these two points be near 45 degree
+    if abs(p2.first-p1.first)<40 && abs((p2.first-p1.first) - dis*p1.second.strand) < 4
+        return true
+    end
+
+    return false
 end

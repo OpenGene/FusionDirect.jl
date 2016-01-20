@@ -139,6 +139,10 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
     clusters1 = clustering_ref(coords_list1)
     coords_list2 = stat_ref(ref_kmer_coords, pair.read2.sequence)
     clusters2 = clustering_ref(coords_list2)
+    # TODO
+    if length(clusters1) == 0 || length(clusters2) == 0
+        return true
+    end
 
     # try to find if there is any intersection between clusters_on_ref1 and clusters_on_ref2
     for c1 in clusters1
@@ -381,7 +385,7 @@ function clustering_ref(coord_lists)
 
     clusters = []
     # TODO: handle clustering of so many points betters
-    if(length(total) > 1000)
+    if(length(total) > 2000)
         return clusters
     end
     while !isempty(total)

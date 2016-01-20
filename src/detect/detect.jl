@@ -99,6 +99,10 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
         end
         # fusion of different contigs on a pair
         if coords1[seg_result1[1][1]].contig != coords2[seg_result2[1][1]].contig
+            if is_pair_connected_on_ref(pair, ref_kmer_coords)
+                return false, false
+            end
+
             l1 = seg_result1[1][1]
             l2 = seg_result2[1][1]
             len1 = length(coords1)
@@ -130,11 +134,36 @@ function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
     return false
 end
 
-function make_connected_fusion(panel_kmer_coord, panel_seq, seg, coords)
-    l1 = seg[1][1]
-    r1 = seg[1][2]
-    l2 = seg[2][1]
-    r2 = seg[2][2]
+function is_pair_connected_on_ref(pair, ref_kmer_coords)
+    coords_list1 = stat_ref(ref_kmer_coords, pair.read1.sequence)
+    clusters1 = clustering_ref(coords_list1)
+    coords_list2 = stat_ref(ref_kmer_coords, pair.read2.sequence)
+    clusters2 = clustering_ref(coords_list2)
+
+    # try to find if there is any intersection between clusters_on_ref1 and clusters_on_ref2
+    for c1 in clusters1
+        (left, right) = span_ref(c1, length(seq))
+        # for any cluster>30 in the read1
+        if (right - left) > 30
+            for c2 in clusters2
+                # if we find a cluster from read2, which is >30 and near c1
+                # it means they are connected
+                (left2, right2) = span_ref(c1, length(seq))
+                if (right2 - left2) > 30 && min_distance(c1, c2) < 500
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+function make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
+    l1 = seg_result[1][1]
+    r1 = seg_result[1][2]
+    l2 = seg_result[2][1]
+    r2 = seg_result[2][2]
     conjunct = div(r1+l2, 2)
     #display_coords(coords)
     fusion_left = Coord(coords[l1].contig, coords[l1].pos + coords[l1].strand * (conjunct - l1), coords[l1].strand)

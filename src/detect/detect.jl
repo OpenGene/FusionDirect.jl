@@ -36,22 +36,22 @@ function display_fusion_pair(fusion_pairs, panel_seq, panel)
         for reads in fusion_reads
             fusion_left, fusion_right, pair = reads
             name = ">"
-            name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left.strand) * "|" * coord_to_chr(fusion_left, panel) * "_"
-            name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right.strand)  * "|" * coord_to_chr(fusion_right, panel) * "/"
+            name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left) * "|" * coord_to_chr(fusion_left, panel) * "_"
+            name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
             print(name, "1\n",pair.read1.sequence.seq,"\n")
             print(name, "2\n",pair.read2.sequence.seq,"\n")
         end
     end
 end
 
-function strand_name(strand)
-    return strand>0?"+":"-"
+function strand_name(coord)
+    return coord.pos>0?"+":"-"
 end
 
 function coord_to_chr(coord, panel)
     from = panel[coord.contig]["from"]
     chr = panel[coord.contig]["chr"]
-    pos = from + coord.pos 
+    pos = from + abs(coord.pos)
     return chr * ":" * string(pos)
 end
 
@@ -107,9 +107,9 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             l2 = seg_result2[1][1]
             len1 = length(coords1)
             len2= length(coords2)
-            fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + coords1[l1].strand * (len1 - l1), coords1[l1].strand)
-            # reverse the strand of fusion right to align the pair in same direction
-            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + coords2[l2].strand * (len2 - l2), coords2[l2].strand * -1)
+            fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + (len1 - l1))
+            # reverse the direction of fusion right to align the pair in same direction
+            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + (len2 - l2), -1)
 
             return fusion_left, fusion_right
         end
@@ -166,8 +166,8 @@ function make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
     r2 = seg_result[2][2]
     conjunct = div(r1+l2, 2)
     #display_coords(coords)
-    fusion_left = Coord(coords[l1].contig, coords[l1].pos + coords[l1].strand * (conjunct - l1), coords[l1].strand)
-    fusion_right = Coord(coords[l2].contig, coords[l2].pos + coords[l2].strand * (conjunct - l2), coords[l2].strand)
+    fusion_left = Coord(coords[l1].contig, coords[l1].pos + (conjunct - l1))
+    fusion_right = Coord(coords[l2].contig, coords[l2].pos + (conjunct - l2))
     return fusion_left, fusion_right
 end
 
@@ -284,7 +284,7 @@ function consistent(coords::Array{Coord, 1}, p1, p2)
     end
 
     # the line of these two points be near 45 degree
-    if abs(p2-p1)<40 && abs((p2-p1) - dis*coords[p1].strand) < 4
+    if abs(p2-p1)<40 && abs((p2-p1) - dis * sign(coords[p1].pos)) < 4
         return true
     end
 
@@ -401,7 +401,7 @@ function consistent_on_ref(p1, p2)
     end
 
     # the line of these two points be near 45 degree
-    if abs(p2.first-p1.first)<40 && abs((p2.first-p1.first) - dis*p1.second.strand) < 4
+    if abs(p2.first-p1.first)<40 && abs((p2.first-p1.first) - dis * sign(p1.second.pos)) < 4
         return true
     end
 

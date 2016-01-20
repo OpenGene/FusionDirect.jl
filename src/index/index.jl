@@ -1,5 +1,5 @@
 # if index format is changed, than increase the format version number
-const INDEX_FORMAT_VER = "v1"
+const INDEX_FORMAT_VER = "v2"
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
 const KMER = 16
 
@@ -14,12 +14,11 @@ position of reverse compelement of the first 16-mer, CCCCGGGGAAAATTTT is: 1+16-1
 immutable Coord
     # of which contig, usually a chr, a gene, an exon or any sequence
     contig::Int16
-    # offset in this contig
+    # offset in this contig, the sign of pos is the strand
     pos::Int32
-    # in which strand, 1 means +, -1 means -
-    strand::Int16
 
-    Coord(contig, pos, strand = 1) = new(Int16(contig), Int32(pos), Int16(strand))
+    Coord(contig, pos) = new(Int16(contig), Int32(pos))
+    Coord(contig, pos, strand) = new(Int16(contig), Int32(strand * pos))
 end
 
 # for debugging
@@ -27,7 +26,7 @@ function display_coords(coords::Array{Coord, 1})
     i = 0
     for coord in coords
         if valid(coord)
-            print("(", coord.strand>0?"+":"-", coord.contig, ":", coord.pos, ")\t")
+            print("(", coord.pos>0?"+":"", coord.contig, ":", coord.pos, ")\t")
         elseif coord.contig == -1
             print("(duplicate)\t")
         elseif coord.contig == -2
@@ -53,10 +52,10 @@ end
 
 # distance of two coords
 function distance(c1::Coord, c2::Coord)
-    if c1.contig != c2.contig || c1.strand != c2.strand
+    if c1.contig != c2.contig || sign(c1.pos) != sign(c2.pos)
         return Inf
     else
-        return c1.pos - c2.pos
+        return abs(c1.pos) - abs(c2.pos)
     end
 end
 
@@ -103,8 +102,8 @@ function index_contig(kmer_coord::KmerCoord, contig_seq::Sequence, contig_number
     len = length(contig_seq)
     for i in 1:len-KMER+1
         seq = contig_seq[i:i+KMER-1]
-        add_to_panel_index(kmer_coord, seq, Coord(contig_number, i, 1))
-        add_to_panel_index(kmer_coord, ~seq, Coord(contig_number, i+KMER-1, -1))
+        add_to_panel_index(kmer_coord, seq, Coord(contig_number, i))
+        add_to_panel_index(kmer_coord, ~seq, Coord(contig_number, - (i+KMER-1)))
     end
 end
 
@@ -286,7 +285,7 @@ function make_kmer_coord_list_chr(task)
             if !haskey(ref_index, key)
                 ref_index[key]=Array{Coord, 1}()
             end
-            push!(ref_index[key], Coord(Int16(chrid), i, 1))
+            push!(ref_index[key], Coord(Int16(chrid), i))
             total+=1
         end
         key = kmer2key(~seq)
@@ -294,7 +293,7 @@ function make_kmer_coord_list_chr(task)
             if !haskey(ref_index, key)
                 ref_index[key]=Array{Coord, 1}()
             end
-            push!(ref_index[key], Coord(Int16(chrid), i+KMER-1, -1))
+            push!(ref_index[key], Coord(Int16(chrid), -(i+KMER-1)))
             total+=1
         end
     end

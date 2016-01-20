@@ -142,13 +142,13 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
 
     # try to find if there is any intersection between clusters_on_ref1 and clusters_on_ref2
     for c1 in clusters1
-        (left, right) = span_ref(c1, length(seq))
+        (left, right) = span_ref(c1, length(pair.read1.sequence))
         # for any cluster>30 in the read1
         if (right - left) > 30
             for c2 in clusters2
                 # if we find a cluster from read2, which is >30 and near c1
                 # it means they are connected
-                (left2, right2) = span_ref(c1, length(seq))
+                (left2, right2) = span_ref(c1, length(pair.read2.sequence))
                 if (right2 - left2) > 30 && min_distance(c1, c2) < 500
                     return true
                 end
@@ -157,6 +157,18 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
     end
 
     return false
+end
+
+function min_distance(c1, c2)
+    dis = Inf
+    for (pos1, coord1) in c1
+        for (pos2, coord2) in c1
+            if abs(coord1 - coord2) < dis
+                dis = abs(coord1 - coord2)
+            end
+        end
+    end
+    return dis
 end
 
 function make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
@@ -368,6 +380,10 @@ function clustering_ref(coord_lists)
     end
 
     clusters = []
+    # TODO: handle clustering of so many points betters
+    if(length(total) > 1000)
+        return clusters
+    end
     while !isempty(total)
         # create a new cluster
         seed = pop!(total)

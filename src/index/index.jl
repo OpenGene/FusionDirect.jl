@@ -2,6 +2,7 @@
 const INDEX_FORMAT_VER = "v2"
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
 const KMER = 16
+const REF_SAMPLE_STEP = 4
 
 """
 the position of a k-mer sequence is the position of its first base, normalized to the direction of strand +
@@ -275,8 +276,8 @@ function make_kmer_coord_list_chr(task)
     shared_kmer=task["shared_kmer"]
     ref_index = KmerCoordList()
     total = 0
-    for i in 1:len-KMER+1
-        if i%10000000 == 0
+    for i in 1:REF_SAMPLE_STEP:len-KMER+1
+        if i%10000000 < REF_SAMPLE_STEP
             println("$chrid-$chrname:$i/$len:$total")
         end
         seq = chrseq[i:i+KMER-1]

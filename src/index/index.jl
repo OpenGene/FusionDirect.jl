@@ -1,3 +1,5 @@
+# if index format is changed, than increase the format version number
+const INDEX_FORMAT_VER = "v1"
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
 const KMER = 16
 
@@ -304,7 +306,7 @@ end
 function get_cache_path(ref_path::AbstractString, bed_file::AbstractString)
     ref_name = basename(ref_path) * "." * string(filesize(ref_path))
     bed_name = basename(bed_file) * "." * string(filesize(bed_file))
-    cache_name = bed_name * "_" * ref_name * ".idx"
+    cache_name = bed_name * "_" * ref_name * "_" *  INDEX_FORMAT_VER * ".idx"
     cache_path = joinpath(dirname(bed_file), cache_name)
     return cache_path
 end

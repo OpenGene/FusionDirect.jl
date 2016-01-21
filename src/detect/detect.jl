@@ -120,9 +120,15 @@ end
 function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
     coords_list = stat_ref(ref_kmer_coords, seq)
     clusters_on_ref = clustering_ref(coords_list)
+    if length(clusters_on_ref) == 0
+        # the cluster set is too big
+        # so it is considered in a heavy repeating region
+        # treat it as not fusion directly
+        return true
+    end
     for cluster in clusters_on_ref
         (left, right) = span_ref(cluster, length(seq))
-        # nearly cover whold sequence
+        # nearly cover whole sequence
         if (right - left) > length(seq) - 30
             return true
         end
@@ -140,6 +146,9 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
     coords_list2 = stat_ref(ref_kmer_coords, pair.read2.sequence)
     clusters2 = clustering_ref(coords_list2)
     # TODO
+    # one or two reads are not clustered because the cluster set is too big
+    # so they are considered in a heavy repeating region
+    # treat it as not fusion directly
     if length(clusters1) == 0 || length(clusters2) == 0
         return true
     end
@@ -154,6 +163,7 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
                 # it means they are connected
                 (left2, right2) = span_ref(c1, length(pair.read2.sequence))
                 if (right2 - left2) > 30 && min_distance(c1, c2) < 500
+                    # two reads are close
                     return true
                 end
             end
@@ -384,7 +394,11 @@ function clustering_ref(coord_lists)
     end
 
     clusters = []
-    # TODO: handle clustering of so many points betters
+    # println(length(total))
+    # TODO: handle big cluster set
+    # the cluster set is too big
+    # so it is considered in a heavy repeating region
+    # treat it as not fusion directly for performance considering
     if(length(total) > 2000)
         return clusters
     end

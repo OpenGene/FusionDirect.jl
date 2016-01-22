@@ -124,19 +124,23 @@ function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
         # the cluster set is too big
         # so it is considered in a heavy repeating region
         # treat it as not fusion directly
+        # println("seq not clustered")
         return true
     end
     for cluster in clusters_on_ref
         (left, right) = span_ref(cluster, length(seq))
         # nearly cover whole sequence
         if (right - left) > length(seq) - 30
+            # println("whole seq on ref")
             return true
         end
         # nearly covers the two regions
         if left < seg_result[1][1] + 10 && right > seg_result[2][2] - 10
+            # println("two regions on ref")
             return true
         end
     end
+    # println("seq not on ref")
     return false
 end
 
@@ -150,6 +154,7 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
     # so they are considered in a heavy repeating region
     # treat it as not fusion directly
     if length(clusters1) == 0 || length(clusters2) == 0
+        println("pair not clustered")
         return true
     end
 
@@ -161,9 +166,10 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
             for c2 in clusters2
                 # if we find a cluster from read2, which is >30 and near c1
                 # it means they are connected
-                (left2, right2) = span_ref(c1, length(pair.read2.sequence))
+                (left2, right2) = span_ref(c2, length(pair.read2.sequence))
                 if (right2 - left2) > 30 && min_distance(c1, c2) < 500
                     # two reads are close
+                    # println("\npair too close, distance:", min_distance(c1, c2))
                     return true
                 end
             end
@@ -176,9 +182,11 @@ end
 function min_distance(c1, c2)
     dis = Inf
     for (pos1, coord1) in c1
-        for (pos2, coord2) in c1
-            if abs(coord1 - coord2) < dis
-                dis = abs(coord1 - coord2)
+        for (pos2, coord2) in c2
+            # the pair should be in different strand
+            d = abs(distance(coord1, Coord(coord2.contig, -coord2.pos)))
+            if d < dis
+                dis = d
             end
         end
     end
@@ -388,8 +396,13 @@ function clustering_ref(coord_lists)
     total = Set()
     # covert the coord list to a set of pos=>coord
     for (pos, arr) in coord_lists
-        for coord in arr
-            push!(total, pos=>coord)
+        # if two many entries on this kmer
+        # we consider this kmer_coords as less informative
+        # for performance considering, we skip it
+        if length(arr) < 300
+            for coord in arr
+                push!(total, pos=>coord)
+            end
         end
     end
 
@@ -399,7 +412,7 @@ function clustering_ref(coord_lists)
     # the cluster set is too big
     # so it is considered in a heavy repeating region
     # treat it as not fusion directly for performance considering
-    if(length(total) > 2000)
+    if(length(total) > 10000)
         return clusters
     end
     while !isempty(total)

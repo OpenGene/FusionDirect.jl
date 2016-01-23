@@ -27,6 +27,9 @@ end
 
 function display_fusion_pair(fusion_pairs, panel_seq, panel)
     for (fusion_key, fusion_reads) in fusion_pairs
+        if length(fusion_reads)<2
+            continue
+        end
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
         name2 = panel[contig2]["name"]

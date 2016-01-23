@@ -1,4 +1,4 @@
-const THRESHOLD = 30
+const THRESHOLD = 40
 
 # ref_path is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
@@ -135,7 +135,7 @@ function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
             return true
         end
         # nearly covers the two regions
-        if left < seg_result[1][1] + 10 && right > seg_result[2][2] - 10
+        if left < seg_result[1][1] + 20 && right > seg_result[2][2] - 20
             # println("two regions on ref")
             return true
         end

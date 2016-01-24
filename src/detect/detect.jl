@@ -1,4 +1,7 @@
+include("white_list.jl")
+
 const THRESHOLD = 40
+const MIN_READ_SUPPORT = 2
 
 # ref_path is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
@@ -27,12 +30,15 @@ end
 
 function display_fusion_pair(fusion_pairs, panel_seq, panel)
     for (fusion_key, fusion_reads) in fusion_pairs
-        if length(fusion_reads)<2
-            continue
-        end
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
         name2 = panel[contig2]["name"]
+        if length(fusion_reads)< MIN_READ_SUPPORT * 2
+            # check if this fusion is in the white list
+            if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
+                continue
+            end
+        end
         # give the fusion as a fasta comment line
         print("#Fusion:", name1, "-", name2, "\n")
         # display all reads support this fusion

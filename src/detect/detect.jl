@@ -1,6 +1,6 @@
 include("white_list.jl")
 
-const THRESHOLD = 40
+const THRESHOLD = 30
 const MIN_READ_SUPPORT = 2
 
 # ref_path is a folder contains fasta files by chromosomes
@@ -144,7 +144,7 @@ function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
             return true
         end
         # nearly covers the two regions
-        if left < seg_result[1][1] + 20 && right > seg_result[2][2] - 20
+        if left < seg_result[1][1] + 15 && right > seg_result[2][2] - 15
             # println("two regions on ref")
             return true
         end

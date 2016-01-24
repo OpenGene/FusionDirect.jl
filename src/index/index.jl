@@ -313,12 +313,29 @@ end
 
 function index_bed(ref_path::AbstractString, bed_file::AbstractString)
     cache_path = get_cache_path(ref_path, bed_file)
+    loaded = false
     # load the index from a cache file
     if isfile(cache_path)
-        io = open(cache_path)
-        index = deserialize(io)
-        return index
-    else
+        try
+            io = open(cache_path)
+            index = deserialize(io)
+            loaded = true
+            return index
+        catch(e)
+            warn("failed to load the pre-built index ($cache_path), maybe it is not completed when saving it. Message:")
+            warn(e)
+            warn("Attemping to delete it now!")
+            try
+                rm(cache_path)
+            catch(e)
+                warn(e)
+                warn("failed to delete $cache_path, please do it manually")
+                warn("FusionDirect exited")
+            end
+        end
+    end
+
+    if !loaded
         println("## index doesn't exist, indexing now, it may take several minutes to a few hours")
         println("## after the index is created, loading it will be very fast")
         index = make_panel_index(ref_path, bed_file)

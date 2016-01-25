@@ -250,7 +250,10 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     println("merge done")
 
     # destroy worker processes
-    rmprocs(workers())
+    worker_procs = workers()
+    if length(worker_procs)>1 || (length(worker_procs) == 1 && worker_procs[1]!=1)
+        rmprocs()
+    end
 
     return ref_index
 end

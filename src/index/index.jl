@@ -236,7 +236,7 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     i = 0
     for result in results
         i += 1
-        println("merging " * string(i))
+        println("## merging " * string(i))
         if isa(result, RemoteException)
             print(result)
             continue
@@ -247,7 +247,7 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
         gc()
     end
 
-    println("merge done")
+    println("## merge done")
 
     # destroy worker processes
     worker_procs = workers()
@@ -273,7 +273,7 @@ function make_kmer_coord_list_chr(task)
     chrname = basename(chrinfo["file"])
     seek(io, chrinfo["position"])
     len = chrinfo["length"]
-    println("indexing $chrid:" * chrinfo["file"])
+    println("## indexing $chrid:" * chrinfo["file"])
     fa = fasta_read(io)
     chrseq = fa.sequence
     shared_kmer=task["shared_kmer"]
@@ -281,7 +281,7 @@ function make_kmer_coord_list_chr(task)
     total = 0
     for i in 1:REF_SAMPLE_STEP:len-KMER+1
         if i%10000000 < REF_SAMPLE_STEP
-            println("$chrid-$chrname:$i/$len:$total")
+            println("## $chrid-$chrname:$i/$len:$total")
         end
         seq = chrseq[i:i+KMER-1]
         key = kmer2key(seq)
@@ -302,7 +302,7 @@ function make_kmer_coord_list_chr(task)
         end
     end
     gc()
-    println("finished $chrid:" * chrinfo["file"])
+    println("## finished $chrid:" * chrinfo["file"])
     return ref_index
 end
 

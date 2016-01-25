@@ -319,29 +319,39 @@ function index_bed(ref_path::AbstractString, bed_file::AbstractString)
         try
             io = open(cache_path)
             index = deserialize(io)
+            if !isa(index, Dict)
+                error("invalid index file, index should be a serialized Dict")
+            elseif !haskey(index, "panel") || !haskey(index, "seq") || !haskey(index, "kmer_coord") || !haskey(index, "ref_kmer_coords")
+                error("invalid index file, wrong Dict keys")
+            end
+
             loaded = true
             return index
         catch(e)
-            warn("failed to load the pre-built index ($cache_path), maybe it is not completed when saving it. Message:")
             warn(e)
-            warn("Attemping to delete it now!")
+            warn("Failed to load the pre-built index ($cache_path), maybe it is not completed when saving it. Attemping to delete it now!")
             try
                 rm(cache_path)
             catch(e)
                 warn(e)
-                warn("failed to delete $cache_path, please do it manually")
+                warn("Failed to delete $cache_path, please do it manually")
                 warn("FusionDirect exited")
+                exit(-1)
             end
         end
     end
 
     if !loaded
-        println("## index doesn't exist, indexing now, it may take several minutes to a few hours")
-        println("## after the index is created, loading it will be very fast")
+        println("## Index doesn't exist, indexing now, it may take several minutes to a few hours")
+        println("## After the index is created, loading it will be very fast")
         index = make_panel_index(ref_path, bed_file)
         # save the index to a cache file
-        io = open(cache_path, "w")
-        serialize(io, index)
+        try
+            io = open(cache_path, "w")
+            serialize(io, index)
+        catch(e)
+            warn("Unable to save index to $cache_path. Please check if the folder is writable for current user, if the index is not cached, it will be built every time you run FusionDirect, which is slow.")
+        end
         return index
     end
 end

@@ -24,7 +24,11 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
                 end
             end
         end
-        display_fusion_pair(fusion_pairs, panel_seq, panel)
+        if isempty(fusion_pairs)
+            println("# no fusion detected")
+        else
+            display_fusion_pair(fusion_pairs, panel_seq, panel)
+        end
     end
 end
 

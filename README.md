@@ -11,10 +11,10 @@ detect gene fusion directly from fastq files
 * output file is a standard fasta file, which can be used to verify fusions using blast or other tools
 * very suitable for detecting fusions from cancer target sequencing data (exom seq or panel seq)
 
-## Install
+## Installation
 ```julia
 # from Julia REPL
-Pkg.clone("https://github.com/OpenGene/FusionDirect.jl.git")
+Pkg.add("FusionDirect")
 ```
 
 ## Use FusionDirect as a package

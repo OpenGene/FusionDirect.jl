@@ -43,8 +43,11 @@ function display_fusion_pair(fusion_pairs, panel_seq, panel)
                 continue
             end
         end
+        unique_fusion_reads = get_unique_fusion_pairs(fusion_reads)
+        total_num = length(fusion_reads)
+        unique_num = length(unique_fusion_reads)
         # give the fusion as a fasta comment line
-        print("#Fusion:", name1, "-", name2, "\n")
+        println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
         # display all reads support this fusion
         for reads in fusion_reads
             fusion_left, fusion_right, pair = reads
@@ -55,6 +58,26 @@ function display_fusion_pair(fusion_pairs, panel_seq, panel)
             print(name, "2\n",pair.read2.sequence.seq,"\n")
         end
     end
+end
+
+function get_unique_fusion_pairs(fusion_reads)
+    unique_fusion_reads=[]
+    # display all reads support this fusion
+    for reads in fusion_reads
+        fusion_left, fusion_right, pair = reads
+        unique = true
+        for ureads in unique_fusion_reads
+            uleft, uright, upair = ureads
+            if upair.read1.sequence == pair.read1.sequence && upair.read2.sequence == pair.read2.sequence
+                unique = false
+                break
+            end
+        end
+        if unique
+            push!(unique_fusion_reads, reads)
+        end
+    end
+    return unique_fusion_reads
 end
 
 function strand_name(coord)

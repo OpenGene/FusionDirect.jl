@@ -24,15 +24,15 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
                 end
             end
         end
-        if isempty(fusion_pairs)
+        printed = print_fusion_pair(fusion_pairs, panel_seq, panel)
+        if printed == 0
             println("# no fusion detected")
-        else
-            print_fusion_pair(fusion_pairs, panel_seq, panel)
         end
     end
 end
 
 function print_fusion_pair(fusion_pairs, panel_seq, panel)
+    printed = false
     for (fusion_key, fusion_reads) in fusion_pairs
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
@@ -56,8 +56,10 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
             name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
             print(name, "1\n",pair.read1.sequence.seq,"\n")
             print(name, "2\n",pair.read2.sequence.seq,"\n")
+            printed += 1
         end
     end
+    return printed
 end
 
 function get_unique_fusion_pairs(fusion_reads)

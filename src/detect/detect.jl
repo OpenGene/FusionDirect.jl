@@ -27,12 +27,12 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
         if isempty(fusion_pairs)
             println("# no fusion detected")
         else
-            display_fusion_pair(fusion_pairs, panel_seq, panel)
+            print_fusion_pair(fusion_pairs, panel_seq, panel)
         end
     end
 end
 
-function display_fusion_pair(fusion_pairs, panel_seq, panel)
+function print_fusion_pair(fusion_pairs, panel_seq, panel)
     for (fusion_key, fusion_reads) in fusion_pairs
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]

@@ -3,6 +3,11 @@ include("white_list.jl")
 const THRESHOLD = 30
 const MIN_READ_SUPPORT = 2
 
+const FUSION_ON_MERGED_READ = 0
+const FUSION_ON_READ1 = 1
+const FUSION_ON_READ2 = 2
+const FUSION_ON_CROSS_READS = 3
+
 # ref_path is a folder contains fasta files by chromosomes
 # like chr1.fa, chr2.fa ...
 function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::AbstractString, r2fq::AbstractString="")
@@ -18,9 +23,9 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
         while (pair = fastq_read_pair(io)) != false
             matches = detect_pair(panel_kmer_coord, pair)
             if length(matches)>1
-                fusion_left, fusion_right = verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, pair)
+                fusion_left, fusion_right, fusion_site, seg_result = verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, pair)
                 if fusion_left!=false && fusion_right!=false && distance(fusion_left, fusion_right)>1000
-                    add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
+                    add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, fusion_site, seg_result, pair)
                 end
             end
         end
@@ -49,9 +54,10 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         # give the fusion as a fasta comment line
         println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
         # display all reads support this fusion
-        for reads in fusion_reads
-            fusion_left, fusion_right, pair = reads
+        for read in fusion_reads
+            fusion_left, fusion_right, fusion_site, conjunct, pair = read
             name = ">"
+            name = name * get_fusion_site_string(conjunct, fusion_site, pair) * "_"
             name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left) * "|" * coord_to_chr(fusion_left, panel) * "_"
             name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
             print(name, "1\n",pair.read1.sequence.seq,"\n")
@@ -62,14 +68,26 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
     return printed
 end
 
+function get_fusion_site_string(conjunct, fusion_site, pair)
+    if fusion_site == FUSION_ON_MERGED_READ
+        return "merged_$conjunct"
+    elseif fusion_site == FUSION_ON_READ1
+        return "read1_$conjunct"
+    elseif fusion_site == FUSION_ON_READ2
+        return "read2_$conjunct"
+    else
+        return "crosspair_0"
+    end
+end
+
 function get_unique_fusion_pairs(fusion_reads)
     unique_fusion_reads=[]
     # display all reads support this fusion
     for reads in fusion_reads
-        fusion_left, fusion_right, pair = reads
+        fusion_left, fusion_right, fusion_site, conjunct, pair = reads
         unique = true
-        for ureads in unique_fusion_reads
-            uleft, uright, upair = ureads
+        for uread in unique_fusion_reads
+            uleft, uright, usite, uconjunct, upair = uread
             if upair.read1.sequence == pair.read1.sequence && upair.read2.sequence == pair.read2.sequence
                 unique = false
                 break
@@ -93,12 +111,12 @@ function coord_to_chr(coord, panel)
     return chr * ":" * string(pos)
 end
 
-function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, pair)
+function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, fusion_site, seg_result, pair)
     key = (min(fusion_left.contig, fusion_right.contig), max(fusion_left.contig, fusion_right.contig))
     if (key in keys(fusion_pairs)) == false
         fusion_pairs[key]=[]
     end
-    push!(fusion_pairs[key], (fusion_left, fusion_right, pair))
+    push!(fusion_pairs[key], (fusion_left, fusion_right, fusion_site, seg_result, pair))
 end
 
 function verify_fusion_se(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, sequence)
@@ -116,29 +134,32 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
         seg_result, coords = segment(ref_kmer_coords, panel_kmer_coord, merged_seq, panel_seq)
         if length(seg_result) > 1
             if !is_seq_connected_on_ref(seg_result, ref_kmer_coords, merged_seq)
-                return make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
+                fusion_left, fusion_right, conjunct = make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
+                return (fusion_left, fusion_right, FUSION_ON_MERGED_READ, conjunct)
             end
         end
     else
         seg_result1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, pair.read1.sequence, panel_seq)
         if length(seg_result1) > 1
             if !is_seq_connected_on_ref(seg_result1, ref_kmer_coords, pair.read1.sequence)
-                return make_connected_fusion(panel_kmer_coord, panel_seq, seg_result1, coords1)
+                fusion_left, fusion_right, conjunct = make_connected_fusion(panel_kmer_coord, panel_seq, seg_result1, coords1)
+                return (fusion_left, fusion_right, FUSION_ON_READ1, conjunct)
             end
         end
         seg_result2, coords2 = segment(ref_kmer_coords, panel_kmer_coord, pair.read2.sequence, panel_seq)
         if length(seg_result2) > 1
             if !is_seq_connected_on_ref(seg_result2, ref_kmer_coords, pair.read2.sequence)
-                return make_connected_fusion(panel_kmer_coord, panel_seq, seg_result2, coords2)
+                fusion_left, fusion_right, conjunct = make_connected_fusion(panel_kmer_coord, panel_seq, seg_result2, coords2)
+                return (fusion_left, fusion_right, FUSION_ON_READ2, conjunct)
             end
         end
         if length(seg_result1)==0 || length(seg_result2) == 0 || seg_result1[1][1] == 0 || seg_result2[1][1] == 0
-            return false, false
+            return false, false, false, 0
         end
         # fusion of different contigs on a pair
         if coords1[seg_result1[1][1]].contig != coords2[seg_result2[1][1]].contig
             if is_pair_connected_on_ref(pair, ref_kmer_coords)
-                return false, false
+                return false, false, false, 0
             end
 
             l1 = seg_result1[1][1]
@@ -149,10 +170,10 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             # reverse the direction of fusion right to align the pair in same direction
             fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + (len2 - l2), -1)
 
-            return fusion_left, fusion_right
+            return (fusion_left, fusion_right, FUSION_ON_CROSS_READS, 0)
         end
     end
-    return false, false
+    return false, false, false, 0
 end
 
 function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
@@ -192,7 +213,7 @@ function is_pair_connected_on_ref(pair, ref_kmer_coords)
     # so they are considered in a heavy repeating region
     # treat it as not fusion directly
     if length(clusters1) == 0 || length(clusters2) == 0
-        println("pair not clustered")
+        # println("pair not clustered")
         return true
     end
 
@@ -240,7 +261,7 @@ function make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
     #display_coords(coords)
     fusion_left = Coord(coords[l1].contig, coords[l1].pos + (conjunct - l1))
     fusion_right = Coord(coords[l2].contig, coords[l2].pos + (conjunct - l2))
-    return fusion_left, fusion_right
+    return fusion_left, fusion_right, conjunct
 end
 
 # detect fusion and find the segmentations

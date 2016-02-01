@@ -62,6 +62,13 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
             name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
             print(name, "1\n",pair.read1.sequence.seq,"\n")
             print(name, "2\n",pair.read2.sequence.seq,"\n")
+
+            if fusion_site == FUSION_ON_MERGED_READ
+                offset, overlap_len, distance = overlap(pair)
+                merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+                print(name, "merged\n",merged_seq.seq,"\n")
+            end
+
             printed += 1
         end
     end

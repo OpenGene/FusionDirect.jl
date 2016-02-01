@@ -37,7 +37,26 @@ copy src/fusion.jl to anywhere you want, run
 julia fusion.jl -f <REF> -b <BED> -l <READ1> -r <READ2> > output.fa
 ```
 
-## Sample output
+## Get the reference
+Can be downloaded from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz
+
+## Prepare the bed
+A bed file to give a gene list (chr, start, end, gene), it usually includes the gene panel of your target sequencing and other genes you have interest (like EML4). Here gives an example:
+```
+chr9    133588266   133763062   ABL1
+chr14   105235686   105262088   AKT1
+chr19   40736224    40791443    AKT2
+chr2    29415640    30144432    ALK
+chrX    66764465    66950461    AR
+chr11   108093211   108239829   ATM
+chr3    142168077   142297668   ATR
+chr2    111876955   111926024   BCL2L11
+chr7    140419127   140624564   BRAF
+chr17   41196312    41277500    BRCA1
+chr2    42396490    42559688    EML4
+```
+
+## Understand the output
 * fasta: The output is a standard fasta, which can be directly used to double check these fusions with blast(http://blast.ncbi.nlm.nih.gov/Blast.cgi?PROGRAM=blastn&PAGE_TYPE=BlastSearch&LINK_LOC=blasthome)
 * fusion_site: The first word after `>` can be `merged`, `read1`, `read2` or `crosspair`, which means the fusion is detected on merged sequence, read1, read2 or read1/read2 are not on same contig.
 * conjunct_pos: the number after `fusion_site`, which means in which base the fusion happens. If `fusion_site` is `merged`, then the number is according to the merged sequence. If `fusion_site` is `crosspair`, then this value is set 0.

@@ -22,7 +22,7 @@ Pkg.add("FusionDirect")
 using FusionDirect
 
 # the reference folder, which contains chr1.fa, chr2fa...
-# can be downloaded from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz
+# download from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz and gunzip it
 ref = "/opt/ref/hg19chr"
 # a gene list with their coordination intervals, see the example bed files in data folder
 bed = Pkg.dir("FusionDirect") * "/data/test_panel.bed"
@@ -38,7 +38,8 @@ julia fusion.jl -f <REF> -b <BED> -l <READ1> -r <READ2> > output.fa
 ```
 
 ## Get the reference
-Can be downloaded from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz
+Can be downloaded from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz   
+You should run `gunzip chromFa.tar.gz` then pass the folder contains fa files to `-f <REF>`
 
 ## Prepare the bed
 A bed file to give a gene list (chr, start, end, gene), it usually includes the gene panel of your target sequencing and other genes you have interest (like EML4). Here gives an example:

@@ -42,7 +42,7 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
         name2 = panel[contig2]["name"]
-        unique_fusion_reads = get_unique_fusion_pairs(fusion_reads)
+        unique_fusion_reads, read_support = get_unique_fusion_pairs(fusion_reads)
         total_num = length(fusion_reads)
         unique_num = length(unique_fusion_reads)
 
@@ -56,9 +56,10 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         # give the fusion as a fasta comment line
         println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
         # display all reads support this fusion
-        for read in fusion_reads
+        for read in unique_fusion_reads
             fusion_left, fusion_right, fusion_site, conjunct, pair = read
-            name = ">"
+            support = read_support[read]
+            name = ">$support\_"
             name = name * get_fusion_site_string(conjunct, fusion_site, pair) * "_"
             name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left) * "|" * coord_to_chr(fusion_left, panel) * "_"
             name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
@@ -91,22 +92,25 @@ end
 
 function get_unique_fusion_pairs(fusion_reads)
     unique_fusion_reads=[]
+    read_support = Dict()
     # display all reads support this fusion
-    for reads in fusion_reads
-        fusion_left, fusion_right, fusion_site, conjunct, pair = reads
+    for read in fusion_reads
+        fusion_left, fusion_right, fusion_site, conjunct, pair = read
         unique = true
         for uread in unique_fusion_reads
             uleft, uright, usite, uconjunct, upair = uread
             if is_dup_pair(upair, pair)
                 unique = false
+                read_support[uread] += 1
                 break
             end
         end
         if unique
-            push!(unique_fusion_reads, reads)
+            push!(unique_fusion_reads, read)
+            read_support[read] = 1
         end
     end
-    return unique_fusion_reads
+    return unique_fusion_reads, read_support
 end
 
 function is_dup_pair(pair1, pair2)

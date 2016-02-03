@@ -95,7 +95,7 @@ function get_unique_fusion_pairs(fusion_reads)
         unique = true
         for uread in unique_fusion_reads
             uleft, uright, usite, uconjunct, upair = uread
-            if upair.read1.sequence == pair.read1.sequence && upair.read2.sequence == pair.read2.sequence
+            if is_dup_pair(upair, pair)
                 unique = false
                 break
             end
@@ -105,6 +105,27 @@ function get_unique_fusion_pairs(fusion_reads)
         end
     end
     return unique_fusion_reads
+end
+
+function is_dup_pair(pair1, pair2)
+    if hamming(pair1.read1.sequence.seq, pair2.read1.sequence.seq) < 2 && hamming(pair1.read2.sequence.seq, pair2.read2.sequence.seq) < 2
+        return true
+    elseif hamming(pair1.read1.sequence.seq, pair2.read2.sequence.seq) < 2 && hamming(pair1.read2.sequence.seq, pair2.read1.sequence.seq) < 2
+        return true
+    end
+    return false
+end
+
+# hamming distance
+function hamming(s1::ASCIIString, s2::ASCIIString)
+    d = 0
+    len = min(length(s1), length(s2))
+    for i in 1:len
+        if s1[i] != s2[i]
+            d += 1
+        end
+    end
+    return d
 end
 
 function strand_name(coord)

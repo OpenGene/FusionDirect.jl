@@ -42,15 +42,17 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
         name2 = panel[contig2]["name"]
-        if length(fusion_reads)< MIN_READ_SUPPORT * 2
+        unique_fusion_reads = get_unique_fusion_pairs(fusion_reads)
+        total_num = length(fusion_reads)
+        unique_num = length(unique_fusion_reads)
+
+        # filter out those fusion with very few reads support (like only 1 unique reads)
+        if unique_num< MIN_READ_SUPPORT * 2
             # check if this fusion is in the white list
             if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
                 continue
             end
         end
-        unique_fusion_reads = get_unique_fusion_pairs(fusion_reads)
-        total_num = length(fusion_reads)
-        unique_num = length(unique_fusion_reads)
         # give the fusion as a fasta comment line
         println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
         # display all reads support this fusion

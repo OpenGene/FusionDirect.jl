@@ -33,6 +33,8 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
         if printed == 0
             println("# no fusion detected")
         end
+    else
+        error("FusionDirect only supports pair-end sequencing data")
     end
 end
 

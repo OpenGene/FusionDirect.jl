@@ -39,45 +39,80 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
 end
 
 function print_fusion_pair(fusion_pairs, panel_seq, panel)
-    printed = false
-    for (fusion_key, fusion_reads) in fusion_pairs
+    printed = 0
+    for (fusion_key, all_fusion_reads) in fusion_pairs
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
         name2 = panel[contig2]["name"]
-        unique_fusion_reads, read_support = get_unique_fusion_pairs(fusion_reads)
-        total_num = length(fusion_reads)
-        unique_num = length(unique_fusion_reads)
 
-        # filter out those fusion with very few reads support (like only 1 unique reads)
-        if unique_num< MIN_READ_SUPPORT * 2
-            # check if this fusion is in the white list
-            if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
-                continue
+        # clustering of fusion pairs
+        clustered_fusion_reads = fusion_clustering(all_fusion_reads, panel)
+
+        for fusion_reads in clustered_fusion_reads
+            unique_fusion_reads, read_support = get_unique_fusion_pairs(fusion_reads)
+            total_num = length(fusion_reads)
+            unique_num = length(unique_fusion_reads)
+
+            # filter out those fusion with very few reads support (like only 1 unique reads)
+            if unique_num< MIN_READ_SUPPORT
+                # check if this fusion is in the white list
+                if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
+                    continue
+                end
             end
-        end
-        # give the fusion as a fasta comment line
-        println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
-        # display all reads support this fusion
-        for read in unique_fusion_reads
-            fusion_left, fusion_right, fusion_site, conjunct, pair = read
-            support = read_support[read]
-            name = ">$support\_"
-            name = name * get_fusion_site_string(conjunct, fusion_site, pair) * "_"
-            name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left) * "|" * coord_to_chr(fusion_left, panel) * "_"
-            name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
-            print(name, "1\n",pair.read1.sequence.seq,"\n")
-            print(name, "2\n",pair.read2.sequence.seq,"\n")
+            # give the fusion as a fasta comment line
+            println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
+            # display all reads support this fusion
+            for read in unique_fusion_reads
+                fusion_left, fusion_right, fusion_site, conjunct, pair = read
+                support = read_support[read]
+                name = ">$support\_"
+                name = name * get_fusion_site_string(conjunct, fusion_site, pair) * "_"
+                name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left) * "|" * coord_to_chr(fusion_left, panel) * "_"
+                name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
+                print(name, "1\n",pair.read1.sequence.seq,"\n")
+                print(name, "2\n",pair.read2.sequence.seq,"\n")
 
-            if fusion_site == FUSION_ON_MERGED_READ
-                offset, overlap_len, distance = overlap(pair)
-                merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
-                print(name, "merged\n",merged_seq.seq,"\n")
+                if fusion_site == FUSION_ON_MERGED_READ
+                    offset, overlap_len, distance = overlap(pair)
+                    merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+                    print(name, "merged\n",merged_seq.seq,"\n")
+                end
+
+                printed += 1
             end
-
-            printed += 1
         end
     end
     return printed
+end
+
+function fusion_clustering(all_fusion_reads, panel)
+    const FUSION_THRESHOLD = 100
+    fusion_clusters = []
+    for r in all_fusion_reads
+        found = false
+        for cluster in fusion_clusters
+            for read in cluster
+                left = read[1]
+                right = read[2]
+                left1 = r[1]
+                right1 = r[2]
+                if (abs(distance(left, left1))< 100 && abs(distance(right, right1))<100) || (abs(distance(left, right1))< 100 && abs(distance(left1, right))<100)
+                    found = true
+                    push!(cluster, r)
+                    break
+                end
+            end
+            if found == true
+                break
+            end
+        end
+        if found == false
+            new_cluster = [r]
+            push!(fusion_clusters, new_cluster)
+        end
+    end
+    return fusion_clusters
 end
 
 function get_fusion_site_string(conjunct, fusion_site, pair)

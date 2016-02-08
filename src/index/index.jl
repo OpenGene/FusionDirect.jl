@@ -61,6 +61,7 @@ function distance(c1::Coord, c2::Coord)
 end
 
 -(c1::Coord, c2::Coord) = distance(c1::Coord, c2::Coord)
+abs(c::Coord) = Coord(c.contig, abs(c.pos))
 
 is_dup(coord::Coord) = (coord.contig == -1)
 is_unknown(coord::Coord) = (coord.contig == -2)

@@ -97,7 +97,7 @@ function fusion_clustering(all_fusion_reads, panel)
                 right = read[2]
                 left1 = r[1]
                 right1 = r[2]
-                if (abs(distance(left, left1))< 100 && abs(distance(right, right1))<100) || (abs(distance(left, right1))< 100 && abs(distance(left1, right))<100)
+                if (distance(abs(left), abs(left1))< 100 && distance(abs(right), abs(right1))<100) || (distance(abs(left), abs(right1))< 100 && distance(abs(left1), abs(right))<100)
                     found = true
                     push!(cluster, r)
                     break

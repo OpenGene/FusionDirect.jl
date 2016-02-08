@@ -7,7 +7,8 @@ using OpenGene.Algorithm
 
 export detect
 
-import Base: -
+import Base: -,
+    abs
 
 include("index/index.jl")
 include("detect/detect.jl")

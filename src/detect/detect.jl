@@ -150,13 +150,21 @@ function get_unique_fusion_pairs(fusion_reads)
     return unique_fusion_reads, read_support
 end
 
-function is_dup_pair(pair1, pair2)
-    if hamming(pair1.read1.sequence.seq, pair2.read1.sequence.seq) < 2 && hamming(pair1.read2.sequence.seq, pair2.read2.sequence.seq) < 2
+function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
+    if is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq) && is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
         return true
-    elseif hamming(pair1.read1.sequence.seq, pair2.read2.sequence.seq) < 2 && hamming(pair1.read2.sequence.seq, pair2.read1.sequence.seq) < 2
+    elseif is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq) && is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
         return true
     end
     return false
+end
+
+function is_dup(s1::ASCIIString, s2::ASCIIString)
+    if edit_distance(s1, s2) < 4 && (s1[1:5] == s2[1:5] || s1[length(s1)-4 : length(s1)] == s2[length(s2)-4 : length(s2)])
+        return true
+    else
+        return false
+    end
 end
 
 # hamming distance

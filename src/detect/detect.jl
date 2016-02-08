@@ -160,7 +160,7 @@ function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
 end
 
 function is_dup(s1::ASCIIString, s2::ASCIIString)
-    if edit_distance(s1, s2) < 4 && (s1[1:5] == s2[1:5] || s1[length(s1)-4 : length(s1)] == s2[length(s2)-4 : length(s2)])
+    if edit_distance(s1, s2) < 5 && (s1[1:5] == s2[1:5] || s1[length(s1)-4 : length(s1)] == s2[length(s2)-4 : length(s2)])
         return true
     else
         return false

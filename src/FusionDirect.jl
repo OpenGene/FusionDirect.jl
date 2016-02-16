@@ -2,6 +2,7 @@ module FusionDirect
 
 using OpenGene
 using OpenGene.Algorithm
+using OpenGene.Reference
 
 # package code goes here
 

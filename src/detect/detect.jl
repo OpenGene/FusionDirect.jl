@@ -40,6 +40,7 @@ end
 
 function print_fusion_pair(fusion_pairs, panel_seq, panel)
     printed = 0
+    gencode = gencode_load("GRCh37")
     for (fusion_key, all_fusion_reads) in fusion_pairs
         contig1, contig2 = fusion_key
         name1 = panel[contig1]["name"]
@@ -68,8 +69,8 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
                 support = read_support[read]
                 name = ">$support\_"
                 name = name * get_fusion_site_string(conjunct, fusion_site, pair) * "_"
-                name = name * panel[fusion_left.contig]["name"] * "|" * strand_name(fusion_left) * "|" * coord_to_chr(fusion_left, panel) * "_"
-                name = name * panel[fusion_right.contig]["name"] * "|" * strand_name(fusion_right)  * "|" * coord_to_chr(fusion_right, panel) * "/"
+                name = name * get_gene_coord_string(fusion_left, panel, gencode) * "_"
+                name = name * get_gene_coord_string(fusion_right, panel, gencode) * "/"
                 print(name, "1\n",pair.read1.sequence.seq,"\n")
                 print(name, "2\n",pair.read2.sequence.seq,"\n")
 
@@ -84,6 +85,29 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         end
     end
     return printed
+end
+
+function get_gene_coord_string(coord, panel, gencode)
+    genename = panel[coord.contig]["name"]
+    from = panel[coord.contig]["from"]
+    chr = panel[coord.contig]["chr"]
+    pos = from + abs(coord.pos)
+
+    str = genename
+    genelocs = gencode_locate(gencode, chr, pos)
+    if length(genelocs) > 0
+        for loc in genelocs
+            if genename == loc["gene"]
+                kind = loc["type"]
+                number = loc["number"]
+                str *= ":$kind"
+                str *= ":$number"
+                break
+            end
+        end
+    end
+    chrloc = chr * ":" * string(pos)
+    str *= "|" * strand_name(coord) * chrloc
 end
 
 function fusion_clustering(all_fusion_reads, panel)
@@ -181,13 +205,6 @@ end
 
 function strand_name(coord)
     return coord.pos>0?"+":"-"
-end
-
-function coord_to_chr(coord, panel)
-    from = panel[coord.contig]["from"]
-    chr = panel[coord.contig]["chr"]
-    pos = from + abs(coord.pos)
-    return chr * ":" * string(pos)
 end
 
 function add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, fusion_site, seg_result, pair)

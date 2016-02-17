@@ -176,19 +176,30 @@ function get_unique_fusion_pairs(fusion_reads)
 end
 
 function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
-    if is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq) && is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
+    ed1 = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
+    ed2 = is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
+    if (ed1 == true && (ed2 == true || ed2 <= 10)) || (ed2 == true && (ed1 == true || ed1 <= 10))
         return true
-    elseif is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq) && is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
+    end
+    ed1 = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
+    ed2 = is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
+    if (ed1 == true && (ed2 == true || ed2 <= 10)) || (ed2 == true && (ed1 == true || ed1 <= 10))
         return true
     end
     return false
 end
 
 function is_dup(s1::ASCIIString, s2::ASCIIString)
-    if edit_distance(s1, s2) < 5 && (s1[1:5] == s2[1:5] || s1[length(s1)-4 : length(s1)] == s2[length(s2)-4 : length(s2)])
+    ed = edit_distance(s1, s2)
+    hm = hamming(s1, s2)
+    if ed <= 3
+        return true
+    elseif hm <= 5
+        return true
+    elseif edit_distance(s1, s2) <=5 && ( hamming(s1[1:5], s2[1:5])<=1 || hamming(s1[length(s1)-4:length(s1)], s2[length(s2)-4:length(s2)])<=1 )
         return true
     else
-        return false
+        return ed
     end
 end
 

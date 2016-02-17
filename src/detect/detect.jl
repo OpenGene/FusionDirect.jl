@@ -73,7 +73,9 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
                 name = name * get_gene_coord_string(fusion_left, panel, gencode) * "_"
                 name = name * get_gene_coord_string(fusion_right, panel, gencode) * "/"
                 print(name, "1\n",pair.read1.sequence.seq,"\n")
+                println("# ", pair.read1.name)
                 print(name, "2\n",pair.read2.sequence.seq,"\n")
+                println("# ", pair.read2.name)
 
                 if fusion_site == FUSION_ON_MERGED_READ
                     offset, overlap_len, distance = overlap(pair)

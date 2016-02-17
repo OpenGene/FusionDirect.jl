@@ -60,6 +60,11 @@ function distance(c1::Coord, c2::Coord)
     end
 end
 
+# abs distance of two coords
+function abs_distance(c1::Coord, c2::Coord)
+    return abs(distance(c1, c2))
+end
+
 -(c1::Coord, c2::Coord) = distance(c1::Coord, c2::Coord)
 abs(c::Coord) = Coord(c.contig, abs(c.pos))
 

@@ -2,6 +2,7 @@ include("white_list.jl")
 
 const THRESHOLD = 30
 const MIN_READ_SUPPORT = 2
+const MAX_CLUSTER_DISTANCE = 100
 
 const FUSION_ON_MERGED_READ = 0
 const FUSION_ON_READ1 = 1
@@ -121,7 +122,7 @@ function fusion_clustering(all_fusion_reads, panel)
                 right = read[2]
                 left1 = r[1]
                 right1 = r[2]
-                if (distance(abs(left), abs(left1))< 100 && distance(abs(right), abs(right1))<100) || (distance(abs(left), abs(right1))< 100 && distance(abs(left1), abs(right))<100)
+                if (abs_distance(left,left1)< MAX_CLUSTER_DISTANCE && abs_distance(right, right1)<MAX_CLUSTER_DISTANCE) || (abs_distance(left, right1)< MAX_CLUSTER_DISTANCE && abs_distance(left1, right)<MAX_CLUSTER_DISTANCE)
                     found = true
                     push!(cluster, r)
                     break

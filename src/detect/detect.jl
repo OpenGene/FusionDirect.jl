@@ -26,7 +26,10 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
             if length(matches)>1
                 fusion_left, fusion_right, fusion_site, seg_result = verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, pair)
                 if fusion_left!=false && fusion_right!=false && distance(fusion_left, fusion_right)>1000
-                    add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, fusion_site, seg_result, pair)
+                    # drop the low quality reads
+                    if pass_quality_filter(pair.read1.quality) && pass_quality_filter(pair.read2.quality)
+                        add_to_fusion_pair(fusion_pairs, fusion_left, fusion_right, fusion_site, seg_result, pair)
+                    end
                 end
             end
         end
@@ -36,6 +39,24 @@ function detect(ref_path::AbstractString, bed_file::AbstractString, r1fq::Abstra
         end
     else
         error("FusionDirect only supports pair-end sequencing data")
+    end
+end
+
+export pass_quality_filter
+function pass_quality_filter(quality)
+    # '0' = q15 as threshold
+    const QUAL_T = '0'
+    lowqual = 0
+    for q in quality.qual
+        if q<QUAL_T
+            lowqual += 1
+        end
+    end
+    # allow up to 8% low quality bases
+    if lowqual/length(quality) > 0.08
+        return false
+    else
+        return true
     end
 end
 
@@ -62,6 +83,7 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
                     continue
                 end
             end
+            
             # give the fusion as a fasta comment line
             println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
             # display all reads support this fusion
@@ -178,14 +200,16 @@ function get_unique_fusion_pairs(fusion_reads)
 end
 
 function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
+    # edit distance threshold
+    const ED_T = length(pair1.read1) * 0.1
     ed1 = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
     ed2 = is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
-    if (ed1 == true && (ed2 == true || ed2 <= 20)) || (ed2 == true && (ed1 == true || ed1 <= 20))
+    if (ed1 == true && (ed2 == true || ed2 <= ED_T)) || (ed2 == true && (ed1 == true || ed1 <= ED_T))
         return true
     end
     ed1 = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
     ed2 = is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
-    if (ed1 == true && (ed2 == true || ed2 <= 20)) || (ed2 == true && (ed1 == true || ed1 <= 20))
+    if (ed1 == true && (ed2 == true || ed2 <= ED_T)) || (ed2 == true && (ed1 == true || ed1 <= ED_T))
         return true
     end
     return false
@@ -196,7 +220,7 @@ function is_dup(s1::ASCIIString, s2::ASCIIString)
     hm = hamming(s1, s2)
     if ed <= 3
         return true
-    elseif hm <= 5
+    elseif hm <= length(s1) * 0.1
         return true
     elseif edit_distance(s1, s2) <=5 && ( hamming(s1[1:5], s2[1:5])<=1 || hamming(s1[length(s1)-4:length(s1)], s2[length(s2)-4:length(s2)])<=1 )
         return true

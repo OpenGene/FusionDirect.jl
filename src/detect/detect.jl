@@ -274,25 +274,39 @@ end
 function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
     # edit distance threshold
     const ED_T = length(pair1.read1) * 0.1
-    dup1, ed1 = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
-    dup2, ed2 = is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
-    if dup1 == true && (dup2 == true || ed2 <= ED_T || share_start_bases(pair1.read2.sequence.seq, pair2.read2.sequence.seq))
+
+    seq11 = pair1.read1.sequence.seq
+    seq12 = pair1.read2.sequence.seq
+    seq21 = pair2.read1.sequence.seq
+    seq22 = pair2.read2.sequence.seq
+
+    dup1, ed1 = is_dup(seq11, seq21)
+    dup2, ed2 = is_dup(seq12, seq22)
+    if dup1 == true && (dup2 == true || ed2 <= ED_T || share_start_bases(seq12, seq22, 5))
         return true
-    elseif dup2 == true && (dup1 == true || ed1 <= ED_T || share_start_bases(pair1.read1.sequence.seq, pair2.read1.sequence.seq))
+    elseif dup2 == true && (dup1 == true || ed1 <= ED_T || share_start_bases(seq11, seq21, 5))
         return true
     end
-    dup1, ed1 = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
-    dup2, ed2 = is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
-    if dup1 == true && (dup2 == true || ed2 <= ED_T || share_start_bases(pair1.read2.sequence.seq, pair2.read1.sequence.seq))
+    dup1, ed1 = is_dup(seq11, seq22)
+    dup2, ed2 = is_dup(seq12, seq21)
+    if dup1 == true && (dup2 == true || ed2 <= ED_T || share_start_bases(seq12, seq21, 5))
         return true
-    elseif dup2 == true && (dup1 == true || ed1 <= ED_T || share_start_bases(pair1.read1.sequence.seq, pair2.read2.sequence.seq))
+    elseif dup2 == true && (dup1 == true || ed1 <= ED_T || share_start_bases(seq11, seq22, 5))
         return true
     end
+
+    # a work around for bad sequence quality
+    if share_start_bases(seq11, seq21, 10) && share_start_bases(seq11, seq21, 10)
+        return true
+    elseif share_start_bases(seq12, seq21, 10) && share_start_bases(seq11, seq22, 10)
+        return true
+    end
+
     return false
 end
 
-function share_start_bases(s1::ASCIIString, s2::ASCIIString)
-    return hamming(s1[1:5], s2[1:5]) <= 1
+function share_start_bases(s1::ASCIIString, s2::ASCIIString, len = 5)
+    return hamming(s1[1:len], s2[1:len]) <= 1
 end
 
 function is_dup(s1::ASCIIString, s2::ASCIIString)

@@ -73,9 +73,9 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
                 name = name * get_gene_coord_string(fusion_left, panel, gencode) * "_"
                 name = name * get_gene_coord_string(fusion_right, panel, gencode) * "/"
                 print(name, "1\n",pair.read1.sequence.seq,"\n")
-                println("# ", pair.read1.name)
+                println("# ", pair.read1.quality.qual)
                 print(name, "2\n",pair.read2.sequence.seq,"\n")
-                println("# ", pair.read2.name)
+                println("# ", pair.read2.quality.qual)
 
                 if fusion_site == FUSION_ON_MERGED_READ
                     offset, overlap_len, distance = overlap(pair)
@@ -180,12 +180,12 @@ end
 function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
     ed1 = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
     ed2 = is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
-    if (ed1 == true && (ed2 == true || ed2 <= 10)) || (ed2 == true && (ed1 == true || ed1 <= 10))
+    if (ed1 == true && (ed2 == true || ed2 <= 20)) || (ed2 == true && (ed1 == true || ed1 <= 20))
         return true
     end
     ed1 = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
     ed2 = is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
-    if (ed1 == true && (ed2 == true || ed2 <= 10)) || (ed2 == true && (ed1 == true || ed1 <= 10))
+    if (ed1 == true && (ed2 == true || ed2 <= 20)) || (ed2 == true && (ed1 == true || ed1 <= 20))
         return true
     end
     return false

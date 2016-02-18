@@ -76,15 +76,9 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
             total_num = length(fusion_reads)
             unique_num = length(unique_fusion_reads)
 
-            # filter out those fusion with very few reads support (like only 1 unique reads)
-            if unique_num< MIN_READ_SUPPORT
+            # filter out those fusion with very few reads support (like only 1 unique reads) or have no consistent fusion readsd
+            if unique_num< MIN_READ_SUPPORT || !have_consistency(unique_fusion_reads)
                 # check if this fusion is in the white list
-                if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
-                    continue
-                end
-            end
-
-            if !have_consistency(unique_fusion_reads)
                 if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
                     continue
                 end

@@ -83,7 +83,13 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
                     continue
                 end
             end
-            
+
+            if !have_consistency(unique_fusion_reads)
+                if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
+                    continue
+                end
+            end
+
             # give the fusion as a fasta comment line
             println("#Fusion:$name1-$name2 (total: $total_num, unique: $unique_num)")
             # display all reads support this fusion
@@ -110,6 +116,55 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         end
     end
     return printed
+end
+
+function have_consistency(unique_fusion_reads)
+    for i in 1:length(unique_fusion_reads) - 1
+        for j in i+1:length(unique_fusion_reads)
+            fusion_left1, fusion_right1, fusion_site1, conjunct1, pair1 = unique_fusion_reads[i]
+            fusion_left2, fusion_right2, fusion_site2, conjunct2, pair2 = unique_fusion_reads[j]
+            if fusion_site1 == FUSION_ON_CROSS_READS || fusion_site2 == FUSION_ON_CROSS_READS
+                # have no conflict
+                return true
+            else
+                r11, r12 = get_fusion_seqs(unique_fusion_reads[i])
+                r21, r22 = get_fusion_seqs(unique_fusion_reads[j])
+                if is_consistent(r11, r21) && is_consistent(r12, r22)
+                    return true
+                elseif is_consistent(r11, r22) && is_consistent(r12, r21)
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+function is_consistent(r1, r2)
+    const CONSISTENT_T = 5
+    overlap_len = min(length(r1), length(r2))
+    overlap_r1 = r1[1:overlap_len]
+    overlap_r2 = r2[1:overlap_len]
+    ed = edit_distance(overlap_r1.seq, overlap_r2.seq)
+    println(r1)
+    println(r2)
+    println(ed)
+    return ed < CONSISTENT_T
+end
+
+function get_fusion_seqs(fusion_read)
+    fusion_left, fusion_right, fusion_site, conjunct, pair = fusion_read
+    seq = nothing
+    if fusion_site == FUSION_ON_READ1
+        seq = pair.read1.sequence
+    elseif fusion_site == FUSION_ON_READ2
+        seq = pair.read2.sequence
+    else
+        offset, overlap_len, distance = overlap(pair)
+        seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+    end
+    len = length(seq)
+    return ~(seq[1:conjunct]), seq[conjunct:len]
 end
 
 function get_gene_coord_string(coord, panel, gencode)

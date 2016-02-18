@@ -62,7 +62,7 @@ end
 
 # abs distance of two coords
 function abs_distance(c1::Coord, c2::Coord)
-    return abs(distance(c1, c2))
+    return abs(distance(abs(c1), abs(c2)))
 end
 
 -(c1::Coord, c2::Coord) = distance(c1::Coord, c2::Coord)

@@ -101,9 +101,9 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
                 name = name * get_gene_coord_string(fusion_left, panel, gencode) * "_"
                 name = name * get_gene_coord_string(fusion_right, panel, gencode) * "/"
                 print(name, "1\n",pair.read1.sequence.seq,"\n")
-                println("# ", pair.read1.quality.qual)
+                # println("# ", pair.read1.quality.qual)
                 print(name, "2\n",pair.read2.sequence.seq,"\n")
-                println("# ", pair.read2.quality.qual)
+                # println("# ", pair.read2.quality.qual)
 
                 if fusion_site == FUSION_ON_MERGED_READ
                     offset, overlap_len, distance = overlap(pair)
@@ -124,8 +124,11 @@ function have_consistency(unique_fusion_reads)
             fusion_left1, fusion_right1, fusion_site1, conjunct1, pair1 = unique_fusion_reads[i]
             fusion_left2, fusion_right2, fusion_site2, conjunct2, pair2 = unique_fusion_reads[j]
             if fusion_site1 == FUSION_ON_CROSS_READS || fusion_site2 == FUSION_ON_CROSS_READS
-                # have no conflict
-                return true
+                if is_bad_pair(pair1, pair2)
+                    continue
+                else
+                    return true
+                end
             else
                 r11, r12 = get_fusion_seqs(unique_fusion_reads[i])
                 r21, r22 = get_fusion_seqs(unique_fusion_reads[j])
@@ -140,16 +143,30 @@ function have_consistency(unique_fusion_reads)
     return false
 end
 
+function is_bad_pair(pair1, pair2)
+    # filter the case that one read is found as dup, but the other read has lots of wrong bases
+    dup, ed = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
+    if dup
+        if hamming(pair1.read2.sequence.seq[1:20], pair2.read2.sequence.seq[1:20]) <= 5
+            return true
+        end
+    end
+    dup, ed = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
+    if dup
+        if hamming(pair1.read2.sequence.seq[1:20], pair2.read1.sequence.seq[1:20]) <= 5
+            return true
+        end
+    end
+    return false
+end
+
 function is_consistent(r1, r2)
     const CONSISTENT_T = 5
     overlap_len = min(length(r1), length(r2))
     overlap_r1 = r1[1:overlap_len]
     overlap_r2 = r2[1:overlap_len]
     ed = edit_distance(overlap_r1.seq, overlap_r2.seq)
-    println(r1)
-    println(r2)
-    println(ed)
-    return ed < CONSISTENT_T
+    return ed <= CONSISTENT_T
 end
 
 function get_fusion_seqs(fusion_read)
@@ -257,30 +274,38 @@ end
 function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
     # edit distance threshold
     const ED_T = length(pair1.read1) * 0.1
-    ed1 = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
-    ed2 = is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
-    if (ed1 == true && (ed2 == true || ed2 <= ED_T)) || (ed2 == true && (ed1 == true || ed1 <= ED_T))
+    dup1, ed1 = is_dup(pair1.read1.sequence.seq, pair2.read1.sequence.seq)
+    dup2, ed2 = is_dup(pair1.read2.sequence.seq, pair2.read2.sequence.seq)
+    if dup1 == true && (dup2 == true || ed2 <= ED_T || share_start_bases(pair1.read2.sequence.seq, pair2.read2.sequence.seq))
+        return true
+    elseif dup2 == true && (dup1 == true || ed1 <= ED_T || share_start_bases(pair1.read1.sequence.seq, pair2.read1.sequence.seq))
         return true
     end
-    ed1 = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
-    ed2 = is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
-    if (ed1 == true && (ed2 == true || ed2 <= ED_T)) || (ed2 == true && (ed1 == true || ed1 <= ED_T))
+    dup1, ed1 = is_dup(pair1.read1.sequence.seq, pair2.read2.sequence.seq)
+    dup2, ed2 = is_dup(pair1.read2.sequence.seq, pair2.read1.sequence.seq)
+    if dup1 == true && (dup2 == true || ed2 <= ED_T || share_start_bases(pair1.read2.sequence.seq, pair2.read1.sequence.seq))
+        return true
+    elseif dup2 == true && (dup1 == true || ed1 <= ED_T || share_start_bases(pair1.read1.sequence.seq, pair2.read2.sequence.seq))
         return true
     end
     return false
+end
+
+function share_start_bases(s1::ASCIIString, s2::ASCIIString)
+    return hamming(s1[1:5], s2[1:5]) <= 1
 end
 
 function is_dup(s1::ASCIIString, s2::ASCIIString)
     ed = edit_distance(s1, s2)
     hm = hamming(s1, s2)
     if ed <= 3
-        return true
+        return true, ed
     elseif hm <= length(s1) * 0.1
-        return true
+        return true, ed
     elseif edit_distance(s1, s2) <=5 && ( hamming(s1[1:5], s2[1:5])<=1 || hamming(s1[length(s1)-4:length(s1)], s2[length(s2)-4:length(s2)])<=1 )
-        return true
+        return true, ed
     else
-        return ed
+        return false, ed
     end
 end
 

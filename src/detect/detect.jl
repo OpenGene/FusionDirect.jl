@@ -79,7 +79,7 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
             # filter out those fusion with very few reads support (like only 1 unique reads) or have no consistent fusion readsd
             if unique_num< MIN_READ_SUPPORT || !have_consistency(unique_fusion_reads)
                 # check if this fusion is in the white list
-                if !((name1, name2) in IMPORTANT_FUSIONS) && !((name2, name1) in IMPORTANT_FUSIONS)
+                if !is_important_fusion(unique_fusion_reads, panel, gencode)
                     continue
                 end
             end
@@ -110,6 +110,63 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
         end
     end
     return printed
+end
+
+function is_important_fusion(fusion_reads, panel, gencode)
+    if length(IMPORTANT_FUSIONS) == 0
+        return false
+    end
+    for read in fusion_reads
+        fusion_left, fusion_right, fusion_site, conjunct, pair = read
+
+        find1 = get_coord_gene(panel, fusion_left, gencode)
+        find2 = get_coord_gene(panel, fusion_right, gencode)
+
+        if find1[1] == false || find2[1] == false
+            continue
+        end
+
+        for (fusion1, fusion2) in IMPORTANT_FUSIONS
+            if is_fusion_identical(find1, fusion1) && is_fusion_identical(find2, fusion2)
+                return true
+            elseif is_fusion_identical(find1, fusion2) && is_fusion_identical(find2, fusion1)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function is_fusion_identical(find, fusion)
+    if find[1] != fusion[1]
+        return false
+    elseif fusion[2] != "*" && find[2] != fusion[2]
+        return false
+    elseif fusion[3] != "*" && find[3] != parse(Int, fusion[3])
+        return false
+    else
+        return true
+    end
+end
+
+function get_coord_gene(panel, coord, gencode)
+    genename = panel[coord.contig]["name"]
+    from = panel[coord.contig]["from"]
+    chr = panel[coord.contig]["chr"]
+    pos = from + abs(coord.pos)
+
+    str = genename
+    genelocs = gencode_locate(gencode, chr, pos)
+    if length(genelocs) > 0
+        for loc in genelocs
+            if genename == loc["gene"]
+                kind = loc["type"]
+                number = loc["number"]
+                return genename, kind, number
+            end
+        end
+    end
+    return false, false, false
 end
 
 function have_consistency(unique_fusion_reads)

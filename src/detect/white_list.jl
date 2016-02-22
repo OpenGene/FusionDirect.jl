@@ -5,5 +5,12 @@ This feature is useful for detecting low frequency fusions in cancer sequencing 
 """
 # "*" means any
 const IMPORTANT_FUSIONS = [
-    (("ALK", "intron", "19"), ("EML4", "intron", "*"))
+    (("ALK", "intron", "19"), ("EML4", "intron", "*")),
+    (("ALK", "intron", "19"), ("KIF5B", "intron", "*")),
+    (("RET", "intron", "11"), ("CCDC6", "intron", "*")),
+    (("RET", "intron", "*"), ("KIF5B", "intron", "*")),
+    (("ROS1", "intron", "33"), ("CD74", "intron", "*")),
+    (("ROS1", "intron", "33"), ("EZR", "intron", "*")),
+    (("ROS1", "intron", "*"), ("GOPC", "intron", "*")),
+    (("NTRK1", "intron", "*"), ("TPM3", "intron", "*")),
 ]

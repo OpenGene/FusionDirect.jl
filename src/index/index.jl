@@ -242,7 +242,7 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     i = 0
     for result in results
         i += 1
-        info("## merging " * string(i))
+        info("merging " * string(i))
         if isa(result, RemoteException)
             info(result)
             continue
@@ -253,7 +253,7 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
         gc()
     end
 
-    info("## merge done")
+    info("merge done")
 
     # destroy worker processes
     worker_procs = workers()
@@ -279,7 +279,7 @@ function make_kmer_coord_list_chr(task)
     chrname = basename(chrinfo["file"])
     seek(io, chrinfo["position"])
     len = chrinfo["length"]
-    info("## indexing $chrid:" * chrinfo["file"])
+    info("indexing $chrid:" * chrinfo["file"])
     fa = fasta_read(io)
     chrseq = fa.sequence
     shared_kmer=task["shared_kmer"]
@@ -287,7 +287,7 @@ function make_kmer_coord_list_chr(task)
     total = 0
     for i in 1:REF_SAMPLE_STEP:len-KMER+1
         if i%10000000 < REF_SAMPLE_STEP
-            info("## $chrid-$chrname:$i/$len:$total")
+            info("$chrid-$chrname:$i/$len:$total")
         end
         seq = chrseq[i:i+KMER-1]
         key = kmer2key(seq)
@@ -308,7 +308,7 @@ function make_kmer_coord_list_chr(task)
         end
     end
     gc()
-    info("## finished $chrid:" * chrinfo["file"])
+    info("finished $chrid:" * chrinfo["file"])
     return ref_index
 end
 
@@ -351,8 +351,8 @@ function index_bed(ref_path::AbstractString, bed_file::AbstractString)
     end
 
     if !loaded
-        info("## Index doesn't exist, indexing now, it may take several minutes to a few hours")
-        info("## After the index is created, loading it will be very fast")
+        info("Index doesn't exist, indexing now, it may take several minutes to a few hours")
+        info("After the index is created, loading it will be very fast")
         index = make_panel_index(ref_path, bed_file)
         # save the index to a cache file
         try

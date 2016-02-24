@@ -401,8 +401,32 @@ end
 function verify_fusion_se(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, sequence)
     seg1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, sequence, panel_seq)
     if length(seg1) > 1
-        return make_connected_fusion(panel_kmer_coord, panel_seq, seg1, coords1)
+        return make_connected_fusion(seg1, coords1)
     end
+end
+
+function found_seq_near_coord(panel_seq, seq, coord, pos_in_seq)
+    search_pos = abs(coord.pos -  pos_in_seq)
+    seqlen = length(seq)
+    # in reverse strand
+    if coord.pos < 0
+        seq = ~seq
+        search_pos -= seqlen
+    end
+    const SEARCH_WINDOW = 30
+    const MATCH_T = 10
+
+    geneseq = panel_seq[coord.contig]
+    genelen = length(geneseq)
+
+    for start = max(search_pos-SEARCH_WINDOW, 1) : min(search_pos+SEARCH_WINDOW, genelen-seqlen-SEARCH_WINDOW)
+        genepart = geneseq.seq[start : start+seqlen-1]
+        ed = edit_distance(genepart, seq.seq)
+        if ed < MATCH_T
+            return true
+        end
+    end
+    return false
 end
 
 function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq, pair)
@@ -413,23 +437,29 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
         seg_result, coords = segment(ref_kmer_coords, panel_kmer_coord, merged_seq, panel_seq)
         if length(seg_result) > 1
             if !is_seq_connected_on_ref(seg_result, ref_kmer_coords, merged_seq)
-                fusion_left, fusion_right, conjunct = make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
-                return (fusion_left, fusion_right, FUSION_ON_MERGED_READ, conjunct)
+                fusion_left, fusion_right, conjunct = make_connected_fusion(seg_result, coords)
+                if !found_seq_near_coord(panel_seq, merged_seq, fusion_left, conjunct) && !found_seq_near_coord(panel_seq, merged_seq, fusion_right, conjunct)
+                    return (fusion_left, fusion_right, FUSION_ON_MERGED_READ, conjunct)
+                end
             end
         end
     else
         seg_result1, coords1 = segment(ref_kmer_coords, panel_kmer_coord, pair.read1.sequence, panel_seq)
         if length(seg_result1) > 1
             if !is_seq_connected_on_ref(seg_result1, ref_kmer_coords, pair.read1.sequence)
-                fusion_left, fusion_right, conjunct = make_connected_fusion(panel_kmer_coord, panel_seq, seg_result1, coords1)
-                return (fusion_left, fusion_right, FUSION_ON_READ1, conjunct)
+                fusion_left, fusion_right, conjunct = make_connected_fusion(seg_result1, coords1)
+                if !found_seq_near_coord(panel_seq, pair.read1.sequence, fusion_left, conjunct) && !found_seq_near_coord(panel_seq, pair.read1.sequence, fusion_right, conjunct)
+                    return (fusion_left, fusion_right, FUSION_ON_READ1, conjunct)
+                end
             end
         end
         seg_result2, coords2 = segment(ref_kmer_coords, panel_kmer_coord, pair.read2.sequence, panel_seq)
         if length(seg_result2) > 1
             if !is_seq_connected_on_ref(seg_result2, ref_kmer_coords, pair.read2.sequence)
-                fusion_left, fusion_right, conjunct = make_connected_fusion(panel_kmer_coord, panel_seq, seg_result2, coords2)
-                return (fusion_left, fusion_right, FUSION_ON_READ2, conjunct)
+                fusion_left, fusion_right, conjunct = make_connected_fusion(seg_result2, coords2)
+                if !found_seq_near_coord(panel_seq, pair.read2.sequence, fusion_left, conjunct) && !found_seq_near_coord(panel_seq, pair.read2.sequence, fusion_right, conjunct)
+                    return (fusion_left, fusion_right, FUSION_ON_READ2, conjunct)
+                end
             end
         end
         if length(seg_result1)==0 || length(seg_result2) == 0 || seg_result1[1][1] == 0 || seg_result2[1][1] == 0
@@ -531,7 +561,7 @@ function min_distance(c1, c2)
     return dis
 end
 
-function make_connected_fusion(panel_kmer_coord, panel_seq, seg_result, coords)
+function make_connected_fusion(seg_result, coords)
     l1 = seg_result[1][1]
     r1 = seg_result[1][2]
     l2 = seg_result[2][1]

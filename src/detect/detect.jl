@@ -413,7 +413,7 @@ function found_seq_near_coord(panel_seq, seq, coord, pos_in_seq)
         seq = ~seq
         search_pos -= seqlen
     end
-    const SEARCH_WINDOW = 30
+    const SEARCH_WINDOW = 10
     const MATCH_T = 10
 
     geneseq = panel_seq[coord.contig]

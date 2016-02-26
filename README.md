@@ -1,6 +1,7 @@
 # FusionDirect
 
 [![Build Status](https://travis-ci.org/OpenGene/FusionDirect.jl.svg?branch=master)](https://travis-ci.org/OpenGene/FusionDirect.jl)
+[![Packagist](https://img.shields.io/packagist/l/doctrine/orm.svg)]()
 [![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.4.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
 [![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.5.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
 

@@ -258,7 +258,7 @@ function make_kmer_coord_list(ref, panel_kmer_coord::KmerCoord)
     # destroy worker processes
     worker_procs = workers()
     if length(worker_procs)>1 || (length(worker_procs) == 1 && worker_procs[1]!=1)
-        rmprocs()
+        rmprocs(worker_procs)
     end
 
     return ref_index

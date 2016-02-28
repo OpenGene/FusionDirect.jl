@@ -38,6 +38,10 @@ detect(ref, bed, read1, read2)
 copy src/fusion.jl to anywhere you want, run
 ```shell
 julia fusion.jl -f <REF> -b <BED> -l <READ1> -r <READ2> > output.fa
+# here gives an example 
+# (hg19chr is downloaded and gunzipped from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/chromFa.tar.gz )
+julia fusion.jl -f ~/hg19chr -b ~/.julia/v0.5/FusionDirect/data/lung_cancer_hg19.bed -l R1.fq -r R2.fq > ourput.fa
+
 ```
 
 ## Get the reference

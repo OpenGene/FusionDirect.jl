@@ -45,7 +45,8 @@ Can be downloaded from http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/ch
 You should run `gunzip chromFa.tar.gz` then pass the folder contains fa files to `-f <REF>`
 
 ## Prepare the bed
-A bed file to give a gene list (chr, start, end, gene), it usually includes the gene panel of your target sequencing and other genes you have interest (like EML4). Here gives an example:
+A bed file to give a gene list (chr, start, end, genename), it usually includes the gene panel of your target sequencing and other genes you have interest (like EML4). You can use `data/lung_cancer_hg19.bed` if you don't know how to make it.  
+Here gives an example:
 ```
 chr9    133588266   133763062   ABL1
 chr14   105235686   105262088   AKT1

@@ -101,7 +101,7 @@ function print_fusion_pair(fusion_pairs, panel_seq, panel)
 
                 if fusion_site == FUSION_ON_MERGED_READ
                     offset, overlap_len, distance = overlap(pair)
-                    merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+                    merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len, offset)
                     print(name, "merged\n",merged_seq.seq,"\n")
                 end
 
@@ -229,7 +229,7 @@ function get_fusion_seqs(fusion_read)
         seq = pair.read2.sequence
     else
         offset, overlap_len, distance = overlap(pair)
-        seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+        seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len, offset)
     end
     len = length(seq)
     return ~(seq[1:conjunct]), seq[conjunct:len]
@@ -433,7 +433,7 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
     offset, overlap_len, distance = overlap(pair)
     # this pair is overlapped, so merged it and segment the merged sequence
     if overlap_len>0 && distance<5
-        merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len)
+        merged_seq = simple_merge(pair.read1.sequence, pair.read2.sequence, overlap_len, offset)
         seg_result, coords = segment(ref_kmer_coords, panel_kmer_coord, merged_seq, panel_seq)
         if length(seg_result) > 1
             if !is_seq_connected_on_ref(seg_result, ref_kmer_coords, merged_seq)

@@ -3,6 +3,7 @@ include("white_list.jl")
 const THRESHOLD = 30
 const MIN_READ_SUPPORT = 2
 const MAX_CLUSTER_DISTANCE = 100
+const MATCH_EDIT_DISTANCE_LIMIT = 5
 
 const FUSION_ON_MERGED_READ = 0
 const FUSION_ON_READ1 = 1
@@ -421,7 +422,6 @@ function found_seq_near_coord(panel_seq, seq, coord, pos_in_seq, threshold = 10)
     for start = max(search_pos-SEARCH_WINDOW, 1) : min(search_pos+SEARCH_WINDOW, genelen-seqlen-SEARCH_WINDOW)
         genepart = geneseq.seq[start : start+seqlen-1]
         ed = edit_distance(genepart, seq.seq)
-        #println(ed)
         if ed < threshold
             return true
         end
@@ -430,21 +430,20 @@ function found_seq_near_coord(panel_seq, seq, coord, pos_in_seq, threshold = 10)
 end
 
 # check if the splitted two sequences are consistent with ref
-function splitted_consistent_with_ref(panel_seq, seq, fusion_left, fusion_right, conjunct)
+function splitted_consistent_with_ref(panel_seq, seq, fusion_left, fusion_right, left, right, conjunct)
     const CONJUNCT_WINDOW = 5
-    const MATCH_T = 10
     seqlen = length(seq)
 
     #println("splitted_consistent_with_ref", " ", conjunct)
     #println(seq)
     for conj = -CONJUNCT_WINDOW:CONJUNCT_WINDOW
         break_point = conjunct + conj
-        left_seq = seq[1:break_point]
-        right_seq = seq[break_point+1:seqlen]
+        left_seq = seq[left:break_point]
+        right_seq = seq[break_point+1:right]
         # coord of the starts of these two seqs
-        left_coord = Coord(fusion_left.contig, fusion_left.pos - (conjunct-1))
+        left_coord = Coord(fusion_left.contig, fusion_left.pos - (conjunct-left))
         right_coord = Coord(fusion_right.contig, fusion_right.pos + conj)
-        if found_seq_near_coord(panel_seq, left_seq, left_coord, 1, MATCH_T) && found_seq_near_coord(panel_seq, right_seq, right_coord, 1, MATCH_T)
+        if found_seq_near_coord(panel_seq, left_seq, left_coord, 1, MATCH_EDIT_DISTANCE_LIMIT) && found_seq_near_coord(panel_seq, right_seq, right_coord, 1, MATCH_EDIT_DISTANCE_LIMIT)
             return true
         end
     end
@@ -462,7 +461,7 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             if !is_seq_connected_on_ref(seg_result, ref_kmer_coords, merged_seq)
                 fusion_left, fusion_right, conjunct = make_connected_fusion(seg_result, coords)
                 if !found_seq_near_coord(panel_seq, merged_seq, fusion_left, conjunct) && !found_seq_near_coord(panel_seq, merged_seq, fusion_right, conjunct)
-                    if splitted_consistent_with_ref(panel_seq, merged_seq, fusion_left, fusion_right, conjunct)
+                    if splitted_consistent_with_ref(panel_seq, merged_seq, fusion_left, fusion_right, seg_result[1][1], seg_result[2][2], conjunct)
                         return (fusion_left, fusion_right, FUSION_ON_MERGED_READ, conjunct)
                     end
                 end
@@ -474,7 +473,7 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             if !is_seq_connected_on_ref(seg_result1, ref_kmer_coords, pair.read1.sequence)
                 fusion_left, fusion_right, conjunct = make_connected_fusion(seg_result1, coords1)
                 if !found_seq_near_coord(panel_seq, pair.read1.sequence, fusion_left, conjunct) && !found_seq_near_coord(panel_seq, pair.read1.sequence, fusion_right, conjunct)
-                    if splitted_consistent_with_ref(panel_seq, pair.read1.sequence, fusion_left, fusion_right, conjunct)
+                    if splitted_consistent_with_ref(panel_seq, pair.read1.sequence, fusion_left, fusion_right, seg_result1[1][1], seg_result1[2][2], conjunct)
                         return (fusion_left, fusion_right, FUSION_ON_READ1, conjunct)
                     end
                 end
@@ -485,7 +484,7 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             if !is_seq_connected_on_ref(seg_result2, ref_kmer_coords, pair.read2.sequence)
                 fusion_left, fusion_right, conjunct = make_connected_fusion(seg_result2, coords2)
                 if !found_seq_near_coord(panel_seq, pair.read2.sequence, fusion_left, conjunct) && !found_seq_near_coord(panel_seq, pair.read2.sequence, fusion_right, conjunct)
-                    if splitted_consistent_with_ref(panel_seq, pair.read2.sequence, fusion_left, fusion_right, conjunct)
+                    if splitted_consistent_with_ref(panel_seq, pair.read2.sequence, fusion_left, fusion_right, seg_result2[1][1], seg_result2[2][2], conjunct)
                         return (fusion_left, fusion_right, FUSION_ON_READ2, conjunct)
                     end
                 end
@@ -511,7 +510,7 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             # check if consistent with ref
             left_coord = Coord(coords1[l1].contig, coords1[l1].pos - l1)
             right_coord = Coord(coords2[l2].contig, coords2[l2].pos - l2)
-            if found_seq_near_coord(panel_seq, pair.read1.sequence, left_coord, 1, 5) && found_seq_near_coord(panel_seq, pair.read2.sequence, right_coord, 1, 5)
+            if found_seq_near_coord(panel_seq, pair.read1.sequence, left_coord, 1, MATCH_EDIT_DISTANCE_LIMIT) && found_seq_near_coord(panel_seq, pair.read2.sequence, right_coord, 1, MATCH_EDIT_DISTANCE_LIMIT)
                 return (fusion_left, fusion_right, FUSION_ON_CROSS_READS, 0)
             end
         end

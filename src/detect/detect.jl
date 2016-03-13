@@ -421,6 +421,7 @@ function found_seq_near_coord(panel_seq, seq, coord, pos_in_seq, threshold = 10)
     for start = max(search_pos-SEARCH_WINDOW, 1) : min(search_pos+SEARCH_WINDOW, genelen-seqlen-SEARCH_WINDOW)
         genepart = geneseq.seq[start : start+seqlen-1]
         ed = edit_distance(genepart, seq.seq)
+        #println(ed)
         if ed < threshold
             return true
         end
@@ -431,16 +432,18 @@ end
 # check if the splitted two sequences are consistent with ref
 function splitted_consistent_with_ref(panel_seq, seq, fusion_left, fusion_right, conjunct)
     const CONJUNCT_WINDOW = 5
-    const MATCH_T = 5
+    const MATCH_T = 10
     seqlen = length(seq)
 
+    #println("splitted_consistent_with_ref", " ", conjunct)
+    #println(seq)
     for conj = -CONJUNCT_WINDOW:CONJUNCT_WINDOW
         break_point = conjunct + conj
         left_seq = seq[1:break_point]
         right_seq = seq[break_point+1:seqlen]
         # coord of the starts of these two seqs
-        left_coord = Coord(fusion_left.contig, fusion_left.pos - sign(fusion_left.pos) * (conjunct-1))
-        right_coord = Coord(fusion_right.contig, fusion_right.pos + sign(fusion_right.pos) * conj)
+        left_coord = Coord(fusion_left.contig, fusion_left.pos - (conjunct-1))
+        right_coord = Coord(fusion_right.contig, fusion_right.pos + conj)
         if found_seq_near_coord(panel_seq, left_seq, left_coord, 1, MATCH_T) && found_seq_near_coord(panel_seq, right_seq, right_coord, 1, MATCH_T)
             return true
         end
@@ -501,13 +504,13 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
             l2 = seg_result2[1][1]
             len1 = length(coords1)
             len2= length(coords2)
-            fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + sign(coords1[l1].pos) * (len1 - l1))
+            fusion_left = Coord(coords1[l1].contig, coords1[l1].pos + (len1 - l1))
             # reverse the direction of fusion right to align the pair in same direction
-            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + sign(coords2[l2].pos) * (len2 - l2), -1)
+            fusion_right = Coord(coords2[l2].contig, coords2[l2].pos + (len2 - l2), -1)
 
             # check if consistent with ref
-            left_coord = Coord(coords1[l1].contig, coords1[l1].pos - sign(coords1[l1].pos) * l1)
-            right_coord = Coord(coords2[l2].contig, coords2[l2].pos - sign(coords2[l2].pos) * l2)
+            left_coord = Coord(coords1[l1].contig, coords1[l1].pos - l1)
+            right_coord = Coord(coords2[l2].contig, coords2[l2].pos - l2)
             if found_seq_near_coord(panel_seq, pair.read1.sequence, left_coord, 1, 5) && found_seq_near_coord(panel_seq, pair.read2.sequence, right_coord, 1, 5)
                 return (fusion_left, fusion_right, FUSION_ON_CROSS_READS, 0)
             end

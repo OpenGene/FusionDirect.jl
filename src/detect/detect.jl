@@ -524,7 +524,10 @@ function verify_fusion_pair(ref_kmer_coords, panel_kmer_coord, panel, panel_seq,
     return false, false, false, 0
 end
 
-function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
+function is_seq_connected_on_ref(seg_result, ref_kmer_coords, original_seq)
+    l = seg_result[1][1]
+    r = seg_result[2][2]
+    seq = original_seq[l:r]
     coords_list = stat_ref(ref_kmer_coords, seq)
     clusters_on_ref = clustering_ref(coords_list)
     if length(clusters_on_ref) == 0
@@ -537,12 +540,12 @@ function is_seq_connected_on_ref(seg_result, ref_kmer_coords, seq)
     for cluster in clusters_on_ref
         (left, right) = span_ref(cluster, length(seq))
         # nearly cover whole sequence
-        if (right - left) > length(seq) - 30
+        if (right - left) > length(seq) - 20
             # println("whole seq on ref")
             return true
         end
         # nearly covers the two regions
-        if left < seg_result[1][1] + 15 && right > seg_result[2][2] - 15
+        if left <  15 && right > length(seq) - 15
             # println("two regions on ref")
             return true
         end

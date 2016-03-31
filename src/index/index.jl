@@ -86,8 +86,13 @@ function kmer2key(str::ASCIIString)
         return -1
     end
     key = 0
-    for c in str
-        key = key*4 + DNA2BIT[c]
+    try
+        for c in str
+            key = key*4 + DNA2BIT[c]
+        end
+    catch e
+        info(e)
+        error("Invalid k-mer $str")
     end
     return key
 end

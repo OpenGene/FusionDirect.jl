@@ -420,7 +420,7 @@ function found_seq_near_coord(panel_seq, seq, coord, pos_in_seq, threshold = 10)
     genelen = length(geneseq)
 
     for start = max(search_pos-SEARCH_WINDOW, 1) : min(search_pos+SEARCH_WINDOW, genelen-seqlen-SEARCH_WINDOW)
-        genepart = geneseq.seq[start : start+seqlen-1]
+        genepart = uppercase(geneseq.seq[start : start+seqlen-1])
         ed = edit_distance(genepart, seq.seq)
         if ed < threshold
             return true

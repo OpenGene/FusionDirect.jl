@@ -5,7 +5,7 @@
 [![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.4.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
 [![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.5.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
 
-detect gene fusion directly from fastq files
+detect gene fusion directly from fastq files, written in [Julia](http://julialang.org/) language
 
 ## Features
 * no alignment needed, it just reads fastq files of pair sequencing
@@ -14,7 +14,11 @@ detect gene fusion directly from fastq files
 * output file is a standard fasta file, which can be used to verify fusions using blast or other tools
 * very suitable for detecting fusions from cancer target sequencing data (exom seq or panel seq)
 
-## Installation
+## Julia
+Julia is a fresh programming language with `C/C++` like performance and `Python` like simple usage  
+On Ubuntu, you can install Julia by `sudo apt-get install julia`, and type `julia` to open Julia interactive prompt
+
+## Install FusionDirect
 ```julia
 # from Julia REPL
 Pkg.add("FusionDirect")

@@ -1,3 +1,5 @@
+using Compat
+
 # if index format is changed, than increase the format version number
 const INDEX_FORMAT_VER = "v2"
 const DNA2BIT = Dict('A'=>0, 'T'=>1, 'C'=>2, 'G'=>3)
@@ -80,7 +82,7 @@ function kmer2key(seq::Sequence)
 end
 
 # convert a kmer seq to a int64 key
-function kmer2key(str::ASCIIString)
+function kmer2key(str::String)
     str = uppercase(str)
     if contains(str, "N")
         return -1
@@ -121,11 +123,11 @@ end
 
 function load_bed(bed_file::AbstractString)
     io = open(bed_file)
-    bed_file = readall(io)
+    @compat bed_file = readstring(io)
     lines = split(bed_file, '\n')
     contig_number = 0
     panel = Dict{Int16, Dict{}}()
-    chr_contigs = Dict{ASCIIString, Array{Int}}()
+    chr_contigs = Dict{String, Array{Int}}()
     for line in lines
         line = rstrip(line, '\n')
         cols = split(line)
@@ -133,14 +135,14 @@ function load_bed(bed_file::AbstractString)
             continue
         end
         contig_number += 1
-        chr = ASCIIString(cols[1])
+        chr = String(cols[1])
         if !haskey(chr_contigs, chr)
             chr_contigs[chr]=Array{Int,1}()
         end
         push!(chr_contigs[chr], contig_number)
-        from = parse(Int64, ASCIIString(cols[2]))
-        to = parse(Int64, ASCIIString(cols[3]))
-        contig_name = ASCIIString(cols[4])
+        from = parse(Int64, String(cols[2]))
+        to = parse(Int64, String(cols[3]))
+        contig_name = String(cols[4])
         panel[contig_number] = Dict("chr"=>chr, "name"=>contig_name, "from"=>from, "to"=>to)
     end
     return panel, chr_contigs

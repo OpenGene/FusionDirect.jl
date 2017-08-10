@@ -6,6 +6,9 @@ using OpenGene.Reference
 
 # package code goes here
 
+# make it compatible for different version of Julia
+include("compat.jl")
+
 export detect
 
 import Base: -,

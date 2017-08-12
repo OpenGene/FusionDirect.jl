@@ -4,6 +4,7 @@
 [![Packagist](https://img.shields.io/packagist/l/doctrine/orm.svg)]()
 [![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.4.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
 [![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.5.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
+[![FusionDirect](http://pkg.julialang.org/badges/FusionDirect_0.6.svg)](http://pkg.julialang.org/?pkg=FusionDirect)
 
 detect gene fusion directly from fastq files, written in [Julia](http://julialang.org/) language
 

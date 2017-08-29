@@ -357,11 +357,11 @@ function is_dup_pair(pair1::FastqPair, pair2::FastqPair)
     return false
 end
 
-function share_start_bases(s1::ASCIIString, s2::ASCIIString, len = 5)
+function share_start_bases(s1::String, s2::String, len = 5)
     return hamming(s1[1:len], s2[1:len]) <= 1
 end
 
-function is_dup(s1::ASCIIString, s2::ASCIIString)
+function is_dup(s1::String, s2::String)
     ed = edit_distance(s1, s2)
     hm = hamming(s1, s2)
     if ed <= 3
@@ -376,7 +376,7 @@ function is_dup(s1::ASCIIString, s2::ASCIIString)
 end
 
 # hamming distance
-function hamming(s1::ASCIIString, s2::ASCIIString)
+function hamming(s1::String, s2::String)
     d = 0
     len = min(length(s1), length(s2))
     for i in 1:len
